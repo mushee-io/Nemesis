@@ -17,9 +17,16 @@ export type PreprodEvidenceBundle = {
   generatedAt: string;
 };
 
-export function evaluatePreprodEvidence(bundle: PreprodEvidenceBundle) {
+export function evaluatePreprodEvidence(
+  bundle: PreprodEvidenceBundle,
+  nowMs = Date.now(),
+  maxEvidenceAgeMs = 2 * 60 * 60 * 1000
+) {
   const generatedAt = new Date(bundle.generatedAt).getTime();
   if (!Number.isFinite(generatedAt)) throw new Error("Invalid Preprod evidence timestamp");
+  if (generatedAt > nowMs + 60_000) throw new Error("Preprod evidence timestamp is in the future");
+  if (maxEvidenceAgeMs <= 0) throw new Error("Invalid Preprod evidence maximum age");
+  if (nowMs - generatedAt > maxEvidenceAgeMs) throw new Error("Preprod evidence is stale");
 
   const artifactManifest = validateArtifactManifest(bundle.artifactManifest);
   const deployments = bindDeploymentEvidence({
@@ -40,6 +47,7 @@ export function evaluatePreprodEvidence(bundle: PreprodEvidenceBundle) {
     requiredValidatorCount: REQUIRED_VALIDATOR_TITLES.length,
     executionCount: lifecycle.executionCount,
     missingActions: lifecycle.missingActions,
-    generatedAt: new Date(generatedAt).toISOString()
+    generatedAt: new Date(generatedAt).toISOString(),
+    evidenceAgeMs: nowMs - generatedAt
   };
 }

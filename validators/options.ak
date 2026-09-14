@@ -15,6 +15,7 @@ pub type OptionDatum {
   contracts: Int,
   collateral_usd: Int,
   settled: Int,
+  settlement_price: Int,
   nonce: Int,
 }
 
@@ -52,6 +53,7 @@ validator options(
         datum.contracts > 0,
         datum.collateral_usd >= 0,
         datum.settled == 0 || datum.settled == 1,
+        if datum.settled == 0 { datum.settlement_price == 0 } else { datum.settlement_price > 0 },
       }
 
     when redeemer is {
@@ -79,6 +81,7 @@ validator options(
                       next_units == input_units + amount,
                       raw.collateral_usd == next_units,
                       raw.settled == 0,
+                      raw.settlement_price == 0,
                       raw.nonce == datum.nonce + 1,
                     }
                   } else {
@@ -114,6 +117,7 @@ validator options(
                       raw.collateral_usd == datum.collateral_usd,
                       next_units == input_units,
                       raw.settled == 1,
+                      raw.settlement_price == settlement_price,
                       raw.nonce == datum.nonce + 1,
                     }
                   } else {
@@ -137,6 +141,7 @@ validator options(
           state_is_backed,
           valid_series,
           datum.settled == 1,
+          datum.settlement_price > 0,
           self.validity_range |> interval.is_entirely_after(datum.expiry_ms),
         }
       }

@@ -13,10 +13,16 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm audit --audit-level=critical
+      - run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: node scripts/hash-directory.mjs .next artifacts/web-build-digest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symbiotic-web-build-provenance
+          path: artifacts/web-build-digest.json
+          if-no-files-found: error
 
   contracts:
     runs-on: ubuntu-latest
@@ -30,7 +36,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check --max-success=300"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=500"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json

@@ -24,6 +24,10 @@ export async function GET() {
         validatorArtifactsPinned: flag(process.env.SYMBIOTIC_VALIDATOR_ARTIFACTS_PINNED),
         validatorDeploymentsBound: flag(process.env.SYMBIOTIC_VALIDATOR_DEPLOYMENTS_BOUND),
         e2eLifecyclePassed: flag(process.env.SYMBIOTIC_E2E_LIFECYCLE_PASSED),
+        releaseProvenanceVerified: flag(process.env.SYMBIOTIC_RELEASE_PROVENANCE_VERIFIED),
+        operatorPolicyVerified: flag(process.env.SYMBIOTIC_OPERATOR_POLICY_VERIFIED),
+        incidentRecoveryConfigured: flag(process.env.SYMBIOTIC_INCIDENT_RECOVERY_CONFIGURED),
+        preprodSoakPassed: flag(process.env.SYMBIOTIC_PREPROD_SOAK_PASSED),
         dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
         securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
         emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
@@ -31,14 +35,14 @@ export async function GET() {
     });
     return NextResponse.json({
       product: "Symbiotic",
-      gate: "onchain-release-v2",
+      gate: "hardened-preprod-release-v3",
       generatedAt: new Date().toISOString(),
       ...readiness
     }, { status: readiness.ready ? 200 : 503 });
   } catch (error) {
     return NextResponse.json({
       product: "Symbiotic",
-      gate: "onchain-release-v2",
+      gate: "hardened-preprod-release-v3",
       ready: false,
       error: error instanceof Error ? error.message : "Unable to evaluate readiness"
     }, { status: 500 });

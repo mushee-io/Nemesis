@@ -40,36 +40,16 @@ test("transaction firewall rejects excessive fees and unknown outputs", () => {
     maxFeeLovelace: 600000n
   };
   assert.equal(validateTransactionFirewall({ prepared, policy }), true);
-  assert.throws(() => validateTransactionFirewall({
-    prepared: { ...prepared, summary: { ...prepared.summary, feeLovelace: "900000" } },
-    policy
-  }), /fee exceeds/);
-  assert.throws(() => validateTransactionFirewall({
-    prepared: { ...prepared, summary: { ...prepared.summary, outputs: [{ address: `addr_test1${"e".repeat(40)}`, lovelace: "1" }] } },
-    policy
-  }), /unapproved output/);
+  assert.throws(() => validateTransactionFirewall({ prepared: { ...prepared, summary: { ...prepared.summary, feeLovelace: "900000" } }, policy }), /fee exceeds/);
+  assert.throws(() => validateTransactionFirewall({ prepared: { ...prepared, summary: { ...prepared.summary, outputs: [{ address: `addr_test1${"e".repeat(40)}`, lovelace: "1" }] } }, policy }), /unapproved output/);
 });
 
 test("oracle circuit breaker rejects abrupt price jumps", () => {
   const nowMs = 1_000_000;
   const history = [{ price: 60_000, timestampMs: nowMs - 10_000, sources: ["oracle-a", "oracle-b"] }];
-  const safe = validateOracleCircuitBreaker({
-    nowMs,
-    history,
-    samples: [
-      { source: "oracle-a", price: 60_100, timestampMs: nowMs - 500 },
-      { source: "oracle-b", price: 60_120, timestampMs: nowMs - 400 }
-    ]
-  });
+  const safe = validateOracleCircuitBreaker({ nowMs, history, samples: [{ source: "oracle-a", price: 60_100, timestampMs: nowMs - 500 }, { source: "oracle-b", price: 60_120, timestampMs: nowMs - 400 }] });
   assert(safe.price > 60_000);
-  assert.throws(() => validateOracleCircuitBreaker({
-    nowMs,
-    history,
-    samples: [
-      { source: "oracle-a", price: 66_000, timestampMs: nowMs - 500 },
-      { source: "oracle-b", price: 66_020, timestampMs: nowMs - 400 }
-    ]
-  }), /abrupt price jump/);
+  assert.throws(() => validateOracleCircuitBreaker({ nowMs, history, samples: [{ source: "oracle-a", price: 66_000, timestampMs: nowMs - 500 }, { source: "oracle-b", price: 66_020, timestampMs: nowMs - 400 }] }), /abrupt price jump/);
 });
 
 test("market risk limits enforce leverage, OI, skew and insurance floors", () => {
@@ -77,60 +57,22 @@ test("market risk limits enforce leverage, OI, skew and insurance floors", () =>
     maxOpenInterestUsd: 1_000_000,
     maxSkewUsd: 400_000,
     maxPositionUsd: 250_000,
-    leverageTiers: [
-      { maxNotionalUsd: 25_000, maxLeverage: 20 },
-      { maxNotionalUsd: 100_000, maxLeverage: 10 },
-      { maxNotionalUsd: 250_000, maxLeverage: 5 }
-    ],
+    leverageTiers: [{ maxNotionalUsd: 25_000, maxLeverage: 20 }, { maxNotionalUsd: 100_000, maxLeverage: 10 }, { maxNotionalUsd: 250_000, maxLeverage: 5 }],
     minInsuranceFundUsd: 100_000
   };
-  assert.equal(validateMarketAdmission({
-    side: "LONG",
-    positionNotionalUsd: 20_000,
-    leverage: 10,
-    state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 },
-    limits
-  }).allowed, true);
-  assert.throws(() => validateMarketAdmission({
-    side: "LONG",
-    positionNotionalUsd: 150_000,
-    leverage: 10,
-    state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 },
-    limits
-  }), /Leverage exceeds/);
-  assert.throws(() => validateMarketAdmission({
-    side: "LONG",
-    positionNotionalUsd: 20_000,
-    leverage: 5,
-    state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 50_000 },
-    limits
-  }), /reduce-only/);
+  assert.equal(validateMarketAdmission({ side: "LONG", positionNotionalUsd: 20_000, leverage: 10, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 }, limits }).allowed, true);
+  assert.throws(() => validateMarketAdmission({ side: "LONG", positionNotionalUsd: 150_000, leverage: 10, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 }, limits }), /Leverage exceeds/);
+  assert.throws(() => validateMarketAdmission({ side: "LONG", positionNotionalUsd: 20_000, leverage: 5, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 50_000 }, limits }), /reduce-only/);
 });
 
 test("insurance accounting exposes bad debt and ADL ranking", () => {
-  assert.deepEqual(applyInsuranceLoss({ insuranceFundUsd: 100, liquidationLossUsd: 160 }), {
-    coveredUsd: 100,
-    remainingInsuranceUsd: 0,
-    badDebtUsd: 60
-  });
-  const ranked = rankAdlCandidates([
-    { account: "a", unrealizedProfitUsd: 1000, leverage: 5, notionalUsd: 10000 },
-    { account: "b", unrealizedProfitUsd: 500, leverage: 15, notionalUsd: 5000 }
-  ]);
+  assert.deepEqual(applyInsuranceLoss({ insuranceFundUsd: 100, liquidationLossUsd: 160 }), { coveredUsd: 100, remainingInsuranceUsd: 0, badDebtUsd: 60 });
+  const ranked = rankAdlCandidates([{ account: "a", unrealizedProfitUsd: 1000, leverage: 5, notionalUsd: 10000 }, { account: "b", unrealizedProfitUsd: 500, leverage: 15, notionalUsd: 5000 }]);
   assert.equal(ranked[0].account, "b");
 });
 
 test("governance timelock and emergency roles fail closed", () => {
-  const proposal = createGovernanceProposal({
-    id: "risk-change-0001",
-    action: "UPDATE_RISK_LIMITS",
-    payloadHash: DIGEST,
-    proposer: "governor-1",
-    role: "GOVERNOR",
-    nowMs: 1_000_000,
-    minimumDelayMs: 3_600_000,
-    ttlMs: 7_200_000
-  });
+  const proposal = createGovernanceProposal({ id: "risk-change-0001", action: "UPDATE_RISK_LIMITS", payloadHash: DIGEST, proposer: "governor-1", role: "GOVERNOR", nowMs: 1_000_000, minimumDelayMs: 3_600_000, ttlMs: 7_200_000 });
   assert.throws(() => authorizeGovernanceExecution({ proposal, role: "GOVERNOR", payloadHash: DIGEST, nowMs: 2_000_000 }), /timelock/);
   assert.equal(authorizeGovernanceExecution({ proposal, role: "GOVERNOR", payloadHash: DIGEST, nowMs: 4_700_000 }), true);
   assert.equal(authorizeEmergencyModeChange({ role: "GUARDIAN", from: "NORMAL", to: "PAUSED" }), true);
@@ -138,7 +80,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires all four validators, onchain evidence and explicit mainnet enable", () => {
+test("release gate requires hardened milestones 30-35 and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -161,11 +103,15 @@ test("release gate requires all four validators, onchain evidence and explicit m
     validatorArtifactsPinned: true,
     validatorDeploymentsBound: true,
     e2eLifecyclePassed: true,
+    releaseProvenanceVerified: true,
+    operatorPolicyVerified: true,
+    incidentRecoveryConfigured: true,
+    preprodSoakPassed: true,
     dependencyAuditReviewed: true,
     securityContactConfigured: true,
     emergencyRunbookConfigured: true
   };
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: false }).ready, false);
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: true }).ready, true);
-  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, e2eLifecyclePassed: false }, allowMainnet: true }).ready, false);
+  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, preprodSoakPassed: false }, allowMainnet: true }).ready, false);
 });

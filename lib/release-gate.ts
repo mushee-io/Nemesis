@@ -12,6 +12,10 @@ export type SecurityEvidence = {
   blueprintVerified: boolean;
   validatorDeploymentsBound: boolean;
   e2eLifecyclePassed: boolean;
+  releaseProvenanceVerified: boolean;
+  operatorPolicyVerified: boolean;
+  incidentRecoveryConfigured: boolean;
+  preprodSoakPassed: boolean;
 };
 
 export function evaluateReleaseGate(input: {
@@ -30,6 +34,10 @@ export function evaluateReleaseGate(input: {
     { id: "validator-artifacts", ready: input.evidence.validatorArtifactsPinned, detail: "Validator artifacts and fingerprints must be pinned to the release." },
     { id: "validator-deployment-binding", ready: input.evidence.validatorDeploymentsBound, detail: "All four deployed script hashes and addresses must be bound to compiled validator fingerprints." },
     { id: "e2e-cardano-lifecycle", ready: input.evidence.e2eLifecyclePassed, detail: "Confirmed Cardano evidence must cover collateral deposit, perp open/close/liquidation, options settlement and Notional settlement." },
+    { id: "release-provenance", ready: input.evidence.releaseProvenanceVerified, detail: "Release commit, build, blueprint, validator manifest and config digests must be cryptographically bound." },
+    { id: "operator-policy", ready: input.evidence.operatorPolicyVerified, detail: "Oracle, keeper, solver and governance operator quorum policy must be reviewed and verified." },
+    { id: "incident-recovery", ready: input.evidence.incidentRecoveryConfigured, detail: "Emergency escalation and delayed recovery procedures must be configured." },
+    { id: "preprod-soak", ready: input.evidence.preprodSoakPassed, detail: "Preprod must pass sustained readiness, lag, oracle and transaction-failure soak limits." },
     { id: "dependency-audit", ready: input.evidence.dependencyAuditReviewed, detail: "Dependency audit findings must be reviewed before release." },
     { id: "security-contact", ready: input.evidence.securityContactConfigured, detail: "A security contact must be configured." },
     { id: "emergency-runbook", ready: input.evidence.emergencyRunbookConfigured, detail: "Emergency response procedures must be configured." }

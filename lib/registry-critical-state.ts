@@ -29,11 +29,11 @@ export function validateRegistryCriticalState(state: RegistryCriticalState, requ
     accountabilityRoot: d(state.accountabilityRoot, "Registry accountability root", requireV9), invariantRoot: d(state.invariantRoot, "Registry invariant root", requireV9),
     upgradeRecoveryRoot: d(state.upgradeRecoveryRoot, "Registry upgrade recovery root", requireV9)
   };
+  const extended = [state.reviewRoot,state.recoveryRoot,state.economicsRoot,state.oraclePolicyRoot,state.disputeRoot,state.accountabilityRoot,state.invariantRoot,state.upgradeRecoveryRoot].some(Boolean);
   if (requireV9 && [n.reviewRoot,n.recoveryRoot,n.economicsRoot,n.oraclePolicyRoot,n.disputeRoot,n.accountabilityRoot,n.invariantRoot,n.upgradeRecoveryRoot].includes(ZERO)) throw new Error("V9 Registry roots cannot be zero");
-  const digest = createHash("sha256").update([
-    n.deploymentEpoch,n.registryNonce,n.stateRoot,n.riskRoot,n.operatorRoot,n.settlementRoot,n.migrationRoot,
-    n.reviewRoot,n.recoveryRoot,n.economicsRoot,n.oraclePolicyRoot,n.disputeRoot,n.accountabilityRoot,n.invariantRoot,n.upgradeRecoveryRoot,
-    n.oracleRound,n.fundingRound,n.paused ? 1 : 0
-  ].join("|")).digest("hex");
+  const parts: Array<string | number> = [n.deploymentEpoch,n.registryNonce,n.stateRoot,n.riskRoot,n.operatorRoot,n.settlementRoot,n.migrationRoot];
+  if (extended || requireV9) parts.push(n.reviewRoot,n.recoveryRoot,n.economicsRoot,n.oraclePolicyRoot,n.disputeRoot,n.accountabilityRoot,n.invariantRoot,n.upgradeRecoveryRoot);
+  parts.push(n.oracleRound,n.fundingRound,n.paused ? 1 : 0);
+  const digest = createHash("sha256").update(parts.join("|")).digest("hex");
   return { ...n, digest };
 }

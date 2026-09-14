@@ -8,6 +8,10 @@ export type SecurityEvidence = {
   dependencyAuditReviewed: boolean;
   securityContactConfigured: boolean;
   emergencyRunbookConfigured: boolean;
+  aikenCheckPassed: boolean;
+  blueprintVerified: boolean;
+  validatorDeploymentsBound: boolean;
+  e2eLifecyclePassed: boolean;
 };
 
 export function evaluateReleaseGate(input: {
@@ -21,7 +25,11 @@ export function evaluateReleaseGate(input: {
     { id: "protocol-tests", ready: input.evidence.protocolTestsPassed, detail: "Protocol regression tests must pass." },
     { id: "execution-tests", ready: input.evidence.executionTestsPassed, detail: "Cardano execution tests must pass." },
     { id: "hardening-tests", ready: input.evidence.hardeningTestsPassed, detail: "Adversarial hardening tests must pass." },
-    { id: "validator-artifacts", ready: input.evidence.validatorArtifactsPinned, detail: "Validator artifacts and hashes must be pinned to the release." },
+    { id: "aiken-check", ready: input.evidence.aikenCheckPassed, detail: "Pinned Aiken validators must typecheck and pass Aiken tests." },
+    { id: "blueprint-verified", ready: input.evidence.blueprintVerified, detail: "The generated CIP-0057 blueprint must contain the expected compiled Symbiotic validators." },
+    { id: "validator-artifacts", ready: input.evidence.validatorArtifactsPinned, detail: "Validator artifacts and fingerprints must be pinned to the release." },
+    { id: "validator-deployment-binding", ready: input.evidence.validatorDeploymentsBound, detail: "Deployed script hashes and addresses must be bound to the compiled validator fingerprints." },
+    { id: "e2e-cardano-lifecycle", ready: input.evidence.e2eLifecyclePassed, detail: "Confirmed Cardano transactions must cover deposit, open perp, close perp and option settlement." },
     { id: "dependency-audit", ready: input.evidence.dependencyAuditReviewed, detail: "Dependency audit findings must be reviewed before release." },
     { id: "security-contact", ready: input.evidence.securityContactConfigured, detail: "A security contact must be configured." },
     { id: "emergency-runbook", ready: input.evidence.emergencyRunbookConfigured, detail: "Emergency response procedures must be configured." }

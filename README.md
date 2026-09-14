@@ -8,24 +8,27 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 
 The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano evidence.
 
-## Current protocol depth — v0.12.0
+## Current protocol depth — v0.13.0
 
-Milestones 50–60 built the five-validator deployment/evidence layer, stable-finality model, Protocol Registry, canonical state roots, cross-product reconciliation and the V7 Preprod release verifier.
+Milestones 50–66 built the five-validator deployment/evidence layer, stable-finality model, Protocol Registry, cross-product reconciliation, migration safety, risk governance, withdrawal containment, liquidation containment, operator governance and the non-executable production-review boundary.
 
-Milestones **60–66** add the critical control plane around that protocol state:
+Milestones **66–74** deepen the safety architecture around that protocol:
 
-- Registry commitments for independent **state, risk, operator, settlement and migration roots**
-- atomic five-validator/state migration evidence
-- bounded risk-parameter governance with guardian tightening and governor-timelocked relaxations
-- stable-finality withdrawal settlement and rolling outflow containment
-- bonded competitive liquidation execution with insurance-floor preservation
-- operator-set epochs, credential retirement, role separation and overlap rules
-- a non-executable production review certificate that recomputes every control root and returns `activationAllowed: false`
+- append-only production-review transparency and certificate revocation evidence
+- deterministic multi-copy state recovery that must reproduce the same UTxO/state root
+- exact fee and insurance-reserve conservation
+- weighted oracle quorum with signer/provider independence and concentration limits
+- settlement challenge windows and resolver-backed dispute state
+- keeper/solver bond accountability, strikes, cooldowns and severity-bounded penalties
+- a global invariant root spanning state, economics, oracle policy, disputes and operator accountability
+- rollback-vs-forward-fix upgrade recovery rules
+- a V9 critical review certificate that recomputes every new safety root and still returns `activationAllowed: false`
 
-Detailed threat models and invariants are in:
+Detailed architecture:
 
 - `docs/milestones-55-60.md`
 - `docs/milestones-60-66-critical.md`
+- `docs/milestones-66-74.md`
 
 ## Validator set
 
@@ -47,103 +50,98 @@ The Registry now anchors:
 - operator-set root
 - settlement-safety root
 - migration root
+- review-transparency root
+- deterministic recovery root
+- fee/insurance economics root
+- oracle-independence policy root
+- settlement dispute root
+- operator-accountability root
+- global invariant root
+- upgrade-recovery root
 - oracle round
 - funding round
 - pause state
 - monotonic nonce
 
-`Advance` is an epoch-changing transition. `Checkpoint` updates in-epoch state/control roots and rounds. `Pause` and `Resume` preserve all committed roots, preventing an emergency-state transition from smuggling a policy or deployment change.
+`Advance` creates the next deployment generation. `Checkpoint` updates in-epoch operational and safety commitments. `Pause` and `Resume` preserve every committed root.
 
-Because Aiken parameters become part of the applied validator, parameter or Registry-code changes create new script hashes/addresses and therefore a new deployment generation.
+Because Aiken parameters and Registry datum/redeemer logic affect compiled code, changes create a new Registry script fingerprint and therefore a new deployment generation.
 
-## Critical migration model
+## Recovery and economic conservation
 
-Migration evidence covers both sides of all five validator handoffs:
+State recovery is valid only when recovered product UTxOs exactly reproduce the canonical checkpoint root. Recovery copies must agree on one snapshot digest and be stored across independent provider/region pairs.
+
+Fee accounting uses exact conservation:
 
 ```text
-previous script hash + previous reference UTxO
-                    ↓
-             migration plan
-                    ↓
-next script hash + next reference UTxO
+gross fee = insurance + treasury + maker rebate + operator allocation
 ```
 
-Upgrades also map live state UTxOs one-to-one, require unique source/target references and advance every state nonce exactly once. Genesis migration requires empty live product state and a zero predecessor Registry root.
-
-## Risk governance
-
-Risk configuration is a deterministic root covering leverage, initial/maintenance margin, OI/position caps, funding/oracle bounds, liquidation penalty, withdrawal controls and insurance floor.
-
-- unambiguously tighter changes may use guardian quorum
-- relaxed or mixed changes require governor quorum + timelock
-- hard safety caps cannot be bypassed by either path
-- liquidation-penalty changes are treated as high-sensitivity mixed changes
-
-## Withdrawal and liquidation safety
-
-Withdrawals require:
-
-- `STABLE` request finality
-- maturity delay
-- healthy post-withdrawal account state
-- per-ticket limits
-- rolling protocol outflow headroom
-- protocol not paused
-
-Liquidations require:
-
-- genuinely unsafe position state
-- bounded mark/index divergence
-- partial-close limits
-- fresh competitive keeper quotes
-- keeper bonds
-- fee/price-impact limits
-- insurance-floor preservation
-- explicit ADL permission for residual bad debt
-
-## Operator-set governance
-
-Operator-set roots bind credential digests, roles, activation windows, thresholds and operator epoch.
-
-Critical role separation includes:
-
-- Governor ≠ Guardian
-- Builder credentials cannot also govern or act as guardians
-- quorum thresholds must be satisfiable
-- oracle/keeper/solver populations must meet diversity policy
-- normal rotations require overlap and delayed activation
-- emergency rotations require guardian quorum and explicit credential retirement
-
-## Production review boundary
-
-Milestone 66 produces a cryptographically bound **production review certificate**. It recomputes:
-
-- source Preprod release digest
-- Registry critical-state digest
-- canonical state root
-- migration digest
-- risk root
-- operator root
-- settlement root
-- chaos/recovery evidence
-- reviewer quorum and validity window
-
-A mismatch in any domain fails closed.
-
-The certificate can return `reviewReady: true`, but always returns:
+Insurance accounting separately enforces:
 
 ```text
+closing reserve = opening reserve + fee allocations + contributions - claims
+```
+
+The closing reserve cannot fall below the configured insurance floor.
+
+## Oracle independence
+
+Oracle security is based on independence rather than endpoint count. Policy commits source/signing identity, provider group, region, weight, quorum threshold, concentration limits, freshness and maximum deviation.
+
+One signer cannot represent multiple sources. A provider group cannot exceed its concentration cap. Accepted rounds require enough fresh weight from enough independent groups and all accepted observations must remain within deviation bounds around the weighted median.
+
+## Settlement disputes and operator accountability
+
+Perp funding, Options settlement and Notional fills may enter a challenge window before finalization. Challenged settlements require evidence, bond, resolver quorum and explicit resolution before becoming final.
+
+Keeper/Solver accountability tracks bond, strikes, disable state and cooldown. Proven replay, stale-oracle use, limit violations, unauthorized state transitions or quote-commitment breaches can trigger severity-bounded penalties after independent review.
+
+## Global invariant and upgrade recovery
+
+The global invariant recomputes:
+
+- canonical protocol state root
+- economics root
+- oracle policy root
+- dispute root
+- accountability root
+- assets, liabilities and solvency surplus
+
+Economics insurance must exactly match canonical checkpoint insurance.
+
+Upgrade recovery distinguishes rollback-safe incidents from irreversible post-upgrade activity. A rollback is allowed only before irreversible settlements and must exactly restore the pre-upgrade root. Once irreversible settlements exist, recovery must use a forward-fix target.
+
+## V9 production review boundary
+
+V9 independently recomputes and compares the Registry against:
+
+- review transparency
+- recovery
+- economics
+- oracle policy
+- settlement disputes
+- operator accountability
+- global invariants
+- upgrade recovery
+
+It also requires the previous critical review to be the latest active transparency-log entry and at least three independent final reviewers.
+
+A fully valid certificate returns:
+
+```text
+reviewReady: true
 activationAllowed: false
 ```
 
-That is intentional. CI, GitHub, environment variables and this repository are not treated as authority to activate live funds.
+That boundary is intentional. CI, GitHub, environment variables and repository code are not treated as authority to activate live funds.
 
 ## Contract build
 
 CI pins Aiken `v1.1.22` and runs:
 
 ```bash
-aiken check --max-success=2500
+aiken check --max-success=3000
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -170,10 +168,11 @@ CI additionally records:
 - package metadata fingerprints
 - deep-release source fingerprints
 - critical-control source fingerprints
+- V9 critical-source fingerprints
 - validator / Registry contract fingerprints
 
 ## Current deployment boundary
 
-The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator V7 Preprod control architecture and the v0.12.0 critical production-review layer.
+The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator control architecture and the v0.13.0 V9 critical production-review layer.
 
-It does **not** claim that this newest Registry generation is deployed, that Preprod evidence has been refreshed for the new fingerprints, or that any live network has been activated. Any deployment or launch decision still requires real on-chain evidence and an external manual authorization process.
+It does **not** claim that this expanded Registry generation is deployed, that previous Preprod evidence is still valid for the new Registry fingerprint, or that any live network has been activated. Real deployment still requires fresh on-chain evidence for this exact compiled generation plus external manual authorization.

@@ -48,13 +48,20 @@ export async function GET() {
         liveOptionsSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_OPTIONS_CONFIRMED),
         liveNotionalSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_NOTIONAL_CONFIRMED),
         preprodReleaseAttestationVerified: flag(process.env.SYMBIOTIC_PREPROD_ATTESTATION_VERIFIED),
+        deploymentEpochChainVerified: flag(process.env.SYMBIOTIC_DEPLOYMENT_EPOCH_CHAIN_VERIFIED),
+        protocolRegistryCheckpointVerified: flag(process.env.SYMBIOTIC_REGISTRY_CHECKPOINT_VERIFIED),
+        stableFinalityVerified: flag(process.env.SYMBIOTIC_STABLE_FINALITY_VERIFIED),
+        oracleFundingAnchorVerified: flag(process.env.SYMBIOTIC_ORACLE_FUNDING_ANCHOR_VERIFIED),
+        crossProductReconciliationVerified: flag(process.env.SYMBIOTIC_CROSS_PRODUCT_RECONCILIATION_VERIFIED),
+        releaseLifecycleVerified: flag(process.env.SYMBIOTIC_RELEASE_LIFECYCLE_VERIFIED),
+        deepPreprodReleaseVerified: flag(process.env.SYMBIOTIC_DEEP_PREPROD_RELEASE_VERIFIED),
         dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
         securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
         emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
       }
     });
-    return NextResponse.json({ product: "Symbiotic", gate: "live-preprod-release-v6", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
+    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v7", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
   } catch (error) {
-    return NextResponse.json({ product: "Symbiotic", gate: "live-preprod-release-v6", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
+    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v7", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
   }
 }

@@ -138,7 +138,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires security evidence and explicit mainnet enable", () => {
+test("release gate requires onchain evidence and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -155,11 +155,16 @@ test("release gate requires security evidence and explicit mainnet enable", () =
     protocolTestsPassed: true,
     executionTestsPassed: true,
     hardeningTestsPassed: true,
+    aikenCheckPassed: true,
+    blueprintVerified: true,
     validatorArtifactsPinned: true,
+    validatorDeploymentsBound: true,
+    e2eLifecyclePassed: true,
     dependencyAuditReviewed: true,
     securityContactConfigured: true,
     emergencyRunbookConfigured: true
   };
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: false }).ready, false);
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: true }).ready, true);
+  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, e2eLifecyclePassed: false }, allowMainnet: true }).ready, false);
 });

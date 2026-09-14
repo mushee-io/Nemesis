@@ -11,7 +11,8 @@ const titles = [
   "collateral.collateral.spend",
   "perpetual.perpetual.spend",
   "options.options.spend",
-  "notional.notional.spend"
+  "notional.notional.spend",
+  "registry.registry.spend"
 ];
 
 const validators = titles.map((title) => {
@@ -28,7 +29,7 @@ const validators = titles.map((title) => {
 });
 
 const artifact = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   project: blueprint.preamble?.title ?? "mushee-io/symbiotic",
   blueprintSha256: crypto.createHash("sha256").update(raw).digest("hex"),
   validators,

@@ -6,158 +6,104 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 2. **Options** — European calls and puts with collateralized writing, deterministic expiry settlement and payout conservation.
 3. **Notional Market** — confidential pre-trade intent with committed competing solver quotes and deterministic best execution.
 
-The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano confirmation evidence.
+The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano evidence.
 
-## Current protocol depth
+## Current protocol depth — v0.11.0
 
-### Milestones 40–45 — economic security
+Milestones 50–55 introduced parameterized validator deployment, confirmed reference scripts, live funding/options/Notional evidence and a short-lived Preprod attestation.
 
-- staged `CANARY_1 -> CANARY_10 -> CANARY_50 -> FULL` release history
-- timed rollback drill to a known-good commit/build/blueprint
-- protocol solvency reconciliation and collateral conservation
-- real collateral-asset backing for perpetual margin
-- oracle + keeper authorization for liquidation
-- bounded, contiguous, value-conserving perpetual funding rounds
-- options settlement payout conservation
-- competitive committed solver quotes for Notional
-- provider/indexer/oracle/replay/reorg/withdrawal/rollback chaos recovery
-- governor-approved release certificate binding code, contracts, SBOM and economic evidence
+Milestones **55–60** add the protocol-wide release control plane:
 
-### Milestone 50 — parameterized validator deployment
+- chained deployment epochs with release-attestation anti-replay
+- a fifth Aiken/Plutus V3 **Protocol Registry** validator
+- canonical protocol state roots across Collateral, Perps, Options and Notional
+- stable-vs-confirmed Cardano finality with explicit rollback/orphan handling
+- oracle/funding rounds anchored to the Registry state root
+- cross-product account and protocol accounting reconciliation
+- ordered `BUILDING -> DEPLOYED -> CANARY -> SOAK -> CERTIFIED -> PREPROD_LIVE` release progression
+- an object-level V7 verifier that recomputes and cross-checks the full evidence graph
 
-Aiken validator parameters are treated as part of the deployed program, not loose environment configuration.
+The detailed design, threat model and invariants are documented in `docs/milestones-55-60.md`.
 
-Every validator instance binds:
+## Validator set
 
-- CIP-0057 blueprint SHA-256
-- unparameterized compiled-code SHA-256
-- ordered Plutus parameter CBOR
-- parameter-set SHA-256
-- final applied script hash
-- final Cardano address
-- deployment transaction
-- deployment slot
-- reference-script UTxO
+Symbiotic now requires five compiled and parameterized spend validators:
 
-Required parameter order is explicit for collateral, perpetual, options and Notional validators. Parameter substitution or reordering fails closed.
+1. `collateral.collateral.spend`
+2. `perpetual.perpetual.spend`
+3. `options.options.spend`
+4. `notional.notional.spend`
+5. `registry.registry.spend`
 
-### Milestone 51 — confirmed reference scripts + chain evidence V2
+The Registry is parameterized with governor and guardian verification-key hashes and anchors:
 
-All four applied Plutus V3 validators must be deployed as confirmed Cardano reference scripts before the live gate can pass.
+- active deployment epoch
+- parameter-schema digest
+- parameterized-deployment digest
+- protocol state root
+- oracle round
+- funding round
+- pause state
+- monotonic nonce
 
-Confirmation evidence records:
+Because Aiken parameters become part of the applied validator, changing a parameter creates a new script hash/address and therefore a new deployment generation.
 
-- transaction hash
-- block hash
-- slot
-- block height
-- transaction index
-- confirmation count
-- observed chain tip
-- consumed UTxOs
-- created UTxOs
-- reference-input UTxOs
-- observation timestamp
+## Cardano finality model
 
-Reference scripts are bound to the exact deployment transaction output. Duplicate UTxO references, stale proof observations, wrong networks and insufficient confirmations are rejected.
+Release evidence distinguishes:
 
-### Milestone 52 — live perpetual funding evidence
+- `OBSERVED`
+- `CONFIRMED`
+- `STABLE`
+- `ORPHANED`
 
-A live Preprod funding receipt must bind:
+Operational confirmation is not enough for Milestone 60. Critical activation transactions must exceed the configured slot-based stability window. A regression from accepted finality requires an explicit rollback record and orphaned transactions are invalidated.
 
-- market and funding round ID
-- funding-round digest
-- independent oracle-round digest
-- payer side
-- payer units
-- receiver units
-- protocol rounding residual
-- confirmed Cardano settlement transaction
-- perpetual reference-script input
+## Protocol-wide reconciliation
 
-Funding transfer must conserve value within the configured rounding tolerance.
+The canonical checkpoint commits unique state UTxOs plus the accounting snapshot for:
 
-### Milestone 53 — live options settlement evidence
+- custody
+- insurance
+- user collateral/equity
+- Perp margin and PnL liabilities
+- Options collateral and payout liabilities
+- Notional escrow
+- pending withdrawals
+- bad debt
 
-A live option settlement must bind:
+Duplicate state IDs/UTxOs and account allocations above owned collateral fail closed.
 
-- series ID
-- settlement price
-- oracle-round digest
-- payout-proof digest
-- locked collateral
-- buyer payout
-- writer residual
-- protocol fee
-- confirmed Cardano settlement transaction
-- options reference-script input
+## Release lifecycle
 
-`buyer + writer + protocol fee` must equal locked collateral exactly.
+Normal promotion is strictly ordered:
 
-### Milestone 54 — live Notional settlement evidence
+```text
+BUILDING
+  -> DEPLOYED
+  -> CANARY
+  -> SOAK
+  -> CERTIFIED
+  -> PREPROD_LIVE
+```
 
-A live Notional fill must bind:
-
-- hidden-intent commitment
-- competitive auction transcript digest
-- winning quote digest
-- BUY/SELL side
-- user limit price
-- final execution price
-- solver fee
-- competing solver count
-- confirmed Cardano settlement transaction
-- Notional reference-script input
-
-BUY execution cannot exceed the user limit. SELL execution cannot settle below the user limit. At least two competing solvers are required by the live evidence policy.
-
-### Milestone 55 — object-level Preprod release attestation
-
-The final Preprod attestation is short-lived and governor-approved. It binds the actual objects produced by the release, not only environment flags:
-
-- parameter-schema artifact digest
-- parameterized deployment digest
-- reference-script deployment bundle digest
-- Cardano confirmation bundle digest
-- live funding/options/Notional evidence digest
-- prior economic-security release certificate digest
-- every required deployment and settlement transaction hash
-- deployment epoch
-- protocol version
-- issuance and expiry window
-
-`evaluateLivePreprodReleaseBundle()` revalidates the full graph before returning ready.
-
-## Cardano execution architecture
-
-The browser connects through CIP-30. A trusted backend builder constructs unsigned CBOR. The wallet signs the transaction body and returns witnesses. A trusted assembler combines transaction body + witnesses, and the final signed CBOR is submitted. Chain/indexer confirmation remains authoritative.
-
-For repeated script use, Symbiotic deploys validators as **reference scripts** and transactions consume protocol state while reading the reference-script UTxO. This reduces repeated script payloads and makes the deployed script location independently auditable.
+Normal transitions cannot skip stages or change deployment epoch. Emergency paths are explicit `PAUSED` / `ROLLED_BACK` states.
 
 ## Contract build
 
-CI installs pinned Aiken `v1.1.22` and runs:
+CI pins Aiken `v1.1.22` and runs:
 
 ```bash
-aiken check --max-success=1500
+aiken check --max-success=2000
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
 npm run contracts:parameters
 ```
 
-CI artifacts contain:
+The CIP-0057 blueprint, validator manifest and parameter-schema artifact must contain all five validators.
 
-- `plutus.json`
-- validator manifest
-- parameter-schema fingerprints
-- contract SHA-256 bundle
-- test TAP evidence + SHA-256
-- production Next.js build digest
-- CycloneDX SBOM
-- package metadata digest
-
-## Web quality gate
+## Web / security gate
 
 ```bash
 npm install
@@ -167,7 +113,14 @@ npm test
 npm run build
 ```
 
-HIGH or CRITICAL npm audit findings block CI.
+CI additionally records:
+
+- TAP test evidence + SHA-256
+- production Next.js build digest
+- CycloneDX SBOM
+- package metadata fingerprints
+- deep-release source fingerprints
+- validator / Registry contract fingerprints
 
 ## Core environment
 
@@ -176,7 +129,6 @@ SYMBIOTIC_CARDANO_NETWORK=preprod
 SYMBIOTIC_PROVIDER_ENDPOINT=https://...
 SYMBIOTIC_INDEXER_ENDPOINT=https://...
 SYMBIOTIC_TX_BUILDER_ENDPOINT=https://...
-SYMBIOTIC_TX_BUILDER_TOKEN=...
 SYMBIOTIC_ORACLE_SOURCES=oracle-a,oracle-b
 
 SYMBIOTIC_COLLATERAL_VALIDATOR_ADDRESS=addr_test1...
@@ -187,29 +139,16 @@ SYMBIOTIC_OPTIONS_VALIDATOR_ADDRESS=addr_test1...
 SYMBIOTIC_OPTIONS_VALIDATOR_HASH=...
 SYMBIOTIC_NOTIONAL_VALIDATOR_ADDRESS=addr_test1...
 SYMBIOTIC_NOTIONAL_VALIDATOR_HASH=...
+SYMBIOTIC_REGISTRY_VALIDATOR_ADDRESS=addr_test1...
+SYMBIOTIC_REGISTRY_VALIDATOR_HASH=...
 ```
 
-Milestones 50–55 add these reviewed evidence gates:
-
-```bash
-SYMBIOTIC_PARAMETER_SCHEMA_PINNED=true
-SYMBIOTIC_PARAMETERIZED_DEPLOYMENT_VERIFIED=true
-SYMBIOTIC_REFERENCE_SCRIPTS_CONFIRMED=true
-SYMBIOTIC_CHAIN_CONFIRMATIONS_V2_VERIFIED=true
-SYMBIOTIC_LIVE_FUNDING_CONFIRMED=true
-SYMBIOTIC_LIVE_OPTIONS_CONFIRMED=true
-SYMBIOTIC_LIVE_NOTIONAL_CONFIRMED=true
-SYMBIOTIC_PREPROD_ATTESTATION_VERIFIED=true
-```
-
-These flags are only a runtime presentation layer. They must be backed by the object-level verification code and real Cardano evidence.
+Milestones 55–60 add runtime evidence indicators for deployment-epoch chaining, Registry checkpointing, stable finality, oracle/funding anchoring, cross-product reconciliation, release lifecycle verification and the final deep Preprod bundle. These flags are presentation/release switches only; the object-level verifier remains authoritative.
 
 ## Current deployment boundary
 
-The repository now contains the full **Perpetual DEX + Options + Notional Market** contract, economic-security, reference-script deployment and live Preprod attestation framework.
+The repository contains the **Perpetual DEX + Options + Notional Market** contracts and the V7 five-validator release-control architecture.
 
-It still does **not** claim that the newest parameterized scripts have already been deployed or that the required live Preprod transactions have already occurred. The latest Aiken build changes the deployment fingerprints, so old script hashes and old deployment receipts are not valid for this release.
+It does **not** claim that this newest validator generation is already live on Cardano Preprod. The Registry is a new validator and the required deployment fingerprints have changed. `/status` must remain fail-closed until the five validators are parameterized and deployed, the Registry checkpoint exists, critical transactions are stable, accounting reconciles, oracle/funding evidence is anchored, and the release lifecycle reaches `PREPROD_LIVE` with matching object-level evidence.
 
-Before `/status` can legitimately turn green, the v0.10.0 validators must be parameterized, deployed as reference scripts, confirmed on Cardano Preprod, and used in real funding/options/Notional transactions whose evidence passes the V6 release gate.
-
-Mainnet remains explicitly locked behind a separate reviewed release.
+Mainnet remains a separate explicitly enabled release path.

@@ -45,6 +45,13 @@ export default function StatusPage() {
       liveOptionsSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_OPTIONS_CONFIRMED),
       liveNotionalSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_NOTIONAL_CONFIRMED),
       preprodReleaseAttestationVerified: flag(process.env.SYMBIOTIC_PREPROD_ATTESTATION_VERIFIED),
+      deploymentEpochChainVerified: flag(process.env.SYMBIOTIC_DEPLOYMENT_EPOCH_CHAIN_VERIFIED),
+      protocolRegistryCheckpointVerified: flag(process.env.SYMBIOTIC_REGISTRY_CHECKPOINT_VERIFIED),
+      stableFinalityVerified: flag(process.env.SYMBIOTIC_STABLE_FINALITY_VERIFIED),
+      oracleFundingAnchorVerified: flag(process.env.SYMBIOTIC_ORACLE_FUNDING_ANCHOR_VERIFIED),
+      crossProductReconciliationVerified: flag(process.env.SYMBIOTIC_CROSS_PRODUCT_RECONCILIATION_VERIFIED),
+      releaseLifecycleVerified: flag(process.env.SYMBIOTIC_RELEASE_LIFECYCLE_VERIFIED),
+      deepPreprodReleaseVerified: flag(process.env.SYMBIOTIC_DEEP_PREPROD_RELEASE_VERIFIED),
       dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
       securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
       emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
@@ -53,12 +60,12 @@ export default function StatusPage() {
 
   return (
     <main style={{ minHeight: "100vh", padding: "48px", background: "#080808", color: "#f4f4ef", fontFamily: "Arial, Helvetica, sans-serif" }}>
-      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / LIVE PREPROD RELEASE GATE V6</p>
+      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / DEEP PREPROD RELEASE GATE V7</p>
       <h1 style={{ fontSize: 54, margin: "18px 0 10px" }}>{readiness.ready ? "RELEASE READY" : "FAIL CLOSED"}</h1>
-      <p style={{ color: "#999", maxWidth: 1040, lineHeight: 1.6 }}>The gate now distinguishes compiled code from live Cardano execution. A release must bind CIP-0057 parameter schemas, applied validator instances, confirmed reference-script UTxOs, canonical chain confirmations, a real funding settlement, a real options payout, a competitive Notional fill and a short-lived governor-approved Preprod attestation—on top of all prior solvency, oracle, keeper, exposure, canary and chaos controls.</p>
+      <p style={{ color: "#999", maxWidth: 1080, lineHeight: 1.6 }}>V7 adds a fifth on-chain Registry validator, deployment-epoch anti-replay, stable-chain finality with rollback handling, canonical protocol state roots, oracle/funding anchoring, cross-product accounting reconciliation, and an ordered release lifecycle. The visible gate remains fail-closed until the underlying object-level evidence verifies.</p>
       <div style={{ marginTop: 36, border: "1px solid #262626" }}>
         {readiness.checks.map((check) => (
-          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "310px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
+          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "320px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
             <strong>{check.id}</strong>
             <span style={{ color: check.ready ? "#e8ff47" : "#ff6161" }}>{check.ready ? "READY" : "MISSING"}</span>
             <span style={{ color: "#818181" }}>{check.detail}</span>

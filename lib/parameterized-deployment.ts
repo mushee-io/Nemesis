@@ -43,7 +43,8 @@ const PARAMETER_ORDER: Record<SymbioticValidatorTitle, string[]> = {
     "collateral_asset"
   ],
   "options.options.spend": ["settlement_authority", "collateral_policy", "collateral_asset"],
-  "notional.notional.spend": ["solver_authority"]
+  "notional.notional.spend": ["solver_authority"],
+  "registry.registry.spend": ["governor_authority", "guardian_authority"]
 };
 
 function hash64(value: string, label: string) {
@@ -75,9 +76,7 @@ function canonicalParameterMaterial(title: SymbioticValidatorTitle, parameters: 
   if (parameters.length !== required.length) throw new Error(`${title} requires exactly ${required.length} parameters`);
   return parameters.map((parameter, index) => {
     const expectedName = required[index];
-    if (parameter.name !== expectedName) {
-      throw new Error(`${title} parameter ${index} must be ${expectedName}`);
-    }
+    if (parameter.name !== expectedName) throw new Error(`${title} parameter ${index} must be ${expectedName}`);
     validCborHex(parameter.cborHex, `${title}.${parameter.name}`);
     return `${index}:${parameter.name}:${parameter.cborHex.toLowerCase()}`;
   }).join("|");
@@ -90,41 +89,29 @@ export function computeParameterDigest(title: SymbioticValidatorTitle, parameter
 
 export function utxoRef(utxo: ReferenceScriptUtxo) {
   txHash(utxo.txHash, "reference-script transaction hash");
-  if (!Number.isInteger(utxo.outputIndex) || utxo.outputIndex < 0 || utxo.outputIndex > 65535) {
-    throw new Error("Invalid reference-script output index");
-  }
+  if (!Number.isInteger(utxo.outputIndex) || utxo.outputIndex < 0 || utxo.outputIndex > 65535) throw new Error("Invalid reference-script output index");
   return `${utxo.txHash.toLowerCase()}#${utxo.outputIndex}`;
 }
 
-export function validateParameterizedValidatorInstance(
-  instance: ParameterizedValidatorInstance,
-  artifactManifest: ValidatorArtifactManifest,
-  expectedNetwork: CardanoNetwork
-) {
+export function validateParameterizedValidatorInstance(instance: ParameterizedValidatorInstance, artifactManifest: ValidatorArtifactManifest, expectedNetwork: CardanoNetwork) {
   validateArtifactManifest(artifactManifest);
   if (!REQUIRED_VALIDATOR_TITLES.includes(instance.title)) throw new Error("Unknown Symbiotic validator title");
   if (instance.network !== expectedNetwork) throw new Error(`${instance.title} deployment network mismatch`);
   hash64(instance.blueprintSha256, "Blueprint SHA-256");
   hash64(instance.sourceCompiledCodeSha256, `${instance.title} source compiled code SHA-256`);
-  if (instance.blueprintSha256.toLowerCase() !== artifactManifest.blueprintSha256.toLowerCase()) {
-    throw new Error(`${instance.title} blueprint fingerprint mismatch`);
-  }
+  if (instance.blueprintSha256.toLowerCase() !== artifactManifest.blueprintSha256.toLowerCase()) throw new Error(`${instance.title} blueprint fingerprint mismatch`);
 
   const artifact = artifactManifest.validators.find((candidate) => candidate.title === instance.title);
   if (!artifact) throw new Error(`Missing source artifact for ${instance.title}`);
   if (!artifact.parameterized) throw new Error(`${instance.title} must be parameterized before deployment`);
-  if (artifact.compiledCodeSha256.toLowerCase() !== instance.sourceCompiledCodeSha256.toLowerCase()) {
-    throw new Error(`${instance.title} source compiled code fingerprint mismatch`);
-  }
+  if (artifact.compiledCodeSha256.toLowerCase() !== instance.sourceCompiledCodeSha256.toLowerCase()) throw new Error(`${instance.title} source compiled code fingerprint mismatch`);
 
   const parameterDigest = computeParameterDigest(instance.title, instance.parameters);
   if (parameterDigest !== instance.parameterDigest.toLowerCase()) throw new Error(`${instance.title} parameter digest mismatch`);
   scriptHash(instance.appliedScriptHash);
   address(instance.address, instance.network);
   txHash(instance.deploymentTxHash, "deployment transaction hash");
-  if (instance.deploymentTxHash.toLowerCase() !== instance.referenceScriptUtxo.txHash.toLowerCase()) {
-    throw new Error(`${instance.title} reference-script UTxO must originate from the deployment transaction`);
-  }
+  if (instance.deploymentTxHash.toLowerCase() !== instance.referenceScriptUtxo.txHash.toLowerCase()) throw new Error(`${instance.title} reference-script UTxO must originate from the deployment transaction`);
   utxoRef(instance.referenceScriptUtxo);
   if (!Number.isInteger(instance.deploymentSlot) || instance.deploymentSlot <= 0) throw new Error("Invalid deployment slot");
   const deployedAt = new Date(instance.deployedAt).getTime();
@@ -139,15 +126,9 @@ export function validateParameterizedValidatorInstance(
   };
 }
 
-export function bindParameterizedDeployment(input: {
-  manifest: ValidatorArtifactManifest;
-  instances: ParameterizedValidatorInstance[];
-  network: CardanoNetwork;
-}) {
+export function bindParameterizedDeployment(input: { manifest: ValidatorArtifactManifest; instances: ParameterizedValidatorInstance[]; network: CardanoNetwork }) {
   validateArtifactManifest(input.manifest);
-  if (input.instances.length !== REQUIRED_VALIDATOR_TITLES.length) {
-    throw new Error(`Expected ${REQUIRED_VALIDATOR_TITLES.length} parameterized validator instances`);
-  }
+  if (input.instances.length !== REQUIRED_VALIDATOR_TITLES.length) throw new Error(`Expected ${REQUIRED_VALIDATOR_TITLES.length} parameterized validator instances`);
 
   const validated = REQUIRED_VALIDATOR_TITLES.map((title) => {
     const instance = input.instances.find((candidate) => candidate.title === title);
@@ -163,18 +144,8 @@ export function bindParameterizedDeployment(input: {
   if (new Set(addresses).size !== addresses.length) throw new Error("Parameterized validators must have unique addresses");
 
   const deploymentDigest = createHash("sha256").update(
-    validated.map((instance) => [
-      instance.title,
-      instance.appliedScriptHash,
-      instance.parameterDigest,
-      instance.referenceScriptRef,
-      instance.deploymentSlot
-    ].join(":" )).join("|")
+    validated.map((instance) => [instance.title, instance.appliedScriptHash, instance.parameterDigest, instance.referenceScriptRef, instance.deploymentSlot].join(":" )).join("|")
   ).digest("hex");
 
-  return {
-    network: input.network,
-    deploymentDigest,
-    instances: validated
-  };
+  return { network: input.network, deploymentDigest, instances: validated };
 }

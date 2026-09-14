@@ -42,16 +42,19 @@ export const REQUIRED_VALIDATOR_TITLES = [
   "collateral.collateral.spend",
   "perpetual.perpetual.spend",
   "options.options.spend",
-  "notional.notional.spend"
+  "notional.notional.spend",
+  "registry.registry.spend"
 ] as const;
 
 export const REQUIRED_PREPROD_ACTIONS = [
+  "DEPLOY_REGISTRY",
   "DEPOSIT_COLLATERAL",
   "OPEN_PERP",
   "CLOSE_PERP",
   "LIQUIDATE",
   "SETTLE_OPTION",
-  "SETTLE_NOTIONAL"
+  "SETTLE_NOTIONAL",
+  "CHECKPOINT_PROTOCOL_STATE"
 ] as const;
 
 function hash64(value: string, label: string) {

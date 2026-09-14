@@ -30,6 +30,13 @@ export default function StatusPage() {
       executionLeaseControlsPassed: flag(process.env.SYMBIOTIC_EXECUTION_LEASE_CONTROLS_PASSED),
       exposureControlsPassed: flag(process.env.SYMBIOTIC_EXPOSURE_CONTROLS_PASSED),
       canaryRollbackConfigured: flag(process.env.SYMBIOTIC_CANARY_ROLLBACK_CONFIGURED),
+      canaryRollbackDrillPassed: flag(process.env.SYMBIOTIC_CANARY_ROLLBACK_DRILL_PASSED),
+      solvencyConservationPassed: flag(process.env.SYMBIOTIC_SOLVENCY_CONSERVATION_PASSED),
+      fundingIntegrityPassed: flag(process.env.SYMBIOTIC_FUNDING_INTEGRITY_PASSED),
+      optionsSettlementConservationPassed: flag(process.env.SYMBIOTIC_OPTIONS_SETTLEMENT_CONSERVATION_PASSED),
+      notionalAuctionFairnessPassed: flag(process.env.SYMBIOTIC_NOTIONAL_AUCTION_FAIRNESS_PASSED),
+      chaosRecoveryPassed: flag(process.env.SYMBIOTIC_CHAOS_RECOVERY_PASSED),
+      releaseCertificateVerified: flag(process.env.SYMBIOTIC_RELEASE_CERTIFICATE_VERIFIED),
       dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
       securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
       emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
@@ -38,12 +45,12 @@ export default function StatusPage() {
 
   return (
     <main style={{ minHeight: "100vh", padding: "48px", background: "#080808", color: "#f4f4ef", fontFamily: "Arial, Helvetica, sans-serif" }}>
-      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / DEEP PREPROD RELEASE GATE V4</p>
+      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / ECONOMIC SECURITY RELEASE GATE V5</p>
       <h1 style={{ fontSize: 54, margin: "18px 0 10px" }}>{readiness.ready ? "RELEASE READY" : "FAIL CLOSED"}</h1>
-      <p style={{ color: "#999", maxWidth: 960, lineHeight: 1.6 }}>Release readiness now requires four compiled Cardano validators, unique state-transition binding, replay-resistant oracle rounds, bounded keeper/solver leases, exposure and withdrawal caps, sustained Preprod health, and an independently fingerprinted staged rollback path.</p>
+      <p style={{ color: "#999", maxWidth: 980, lineHeight: 1.6 }}>Release readiness now requires the prior Cardano validator, state, oracle, lease, exposure and canary controls plus real collateral solvency reconciliation, bounded perpetual funding, options payout conservation, competitive Notional solver execution, fault-injection recovery and a governor-approved release certificate.</p>
       <div style={{ marginTop: 36, border: "1px solid #262626" }}>
         {readiness.checks.map((check) => (
-          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "280px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
+          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "300px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
             <strong>{check.id}</strong>
             <span style={{ color: check.ready ? "#e8ff47" : "#ff6161" }}>{check.ready ? "READY" : "MISSING"}</span>
             <span style={{ color: "#818181" }}>{check.detail}</span>

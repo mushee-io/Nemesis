@@ -7,10 +7,8 @@ import {
   type CardanoConfirmationProof,
   type ConfirmationPolicy
 } from "./chain-confirmation-v2";
-import {
-  REQUIRED_VALIDATOR_TITLES,
-  type SymbioticValidatorTitle
-} from "./parameterized-deployment";
+import { REQUIRED_VALIDATOR_TITLES } from "./onchain-evidence";
+import type { SymbioticValidatorTitle } from "./parameterized-deployment";
 
 export type ReferenceScriptDeploymentIntent = {
   title: SymbioticValidatorTitle;

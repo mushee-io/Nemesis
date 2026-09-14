@@ -6,95 +6,90 @@ Symbiotic is a Cardano-native derivatives venue focused on:
 2. **Options** — European calls and puts with model pricing, Greeks, fully-collateralized writing and deterministic expiry settlement.
 3. **Notional Market** — confidential pre-trade intent designed to keep direction, size and limit price out of public order flow before matching.
 
-The repository is intentionally fail-closed. Preview calculations are never treated as authoritative settlement, and the public readiness surfaces remain unavailable until real Cardano infrastructure and security evidence are configured.
-
-## Milestones 11–14
-
-The previous execution phase introduced:
-
-- CIP-30 network enforcement and wallet witness signing
-- backend prepared transaction / assembly boundaries
-- replay-safe transaction requests
-- oracle quorum and chain/indexer state
-- expiry-only options settlement authorization
-- liquidation keeper authorization
-- off-chain collateral/perpetual validator transition mirrors
+The repository is intentionally fail-closed. Preview calculations are never treated as authoritative settlement, and readiness stays red until Cardano infrastructure, compiled validators and release evidence are present.
 
 ## Hardened Milestones 15–20
 
-### Milestone 15 — Release/readiness v2
+The previous phase delivered the transaction firewall, oracle circuit breaker, market OI/skew/leverage limits, insurance and ADL controls, timelocked governance/emergency modes, dependency-audit gating, browser security headers and the hardened runtime release gate.
 
-- readiness upgraded from infrastructure-only checks to a hardened release gate
-- protocol, execution and hardening test evidence required
-- validator artifacts must be pinned before release
-- dependency-audit review required
-- security contact and emergency runbook required
-- mainnet is blocked unless explicitly enabled at release time
+## Milestones 21–25 — On-chain contract phase
 
-### Milestone 16 — Transaction firewall
+### Milestone 21 — Pinned Aiken workspace + collateral state validator
 
-- hardened prepared-transaction summaries
-- action/account/network binding
-- validator script allowlists
-- output-address allowlists
-- expected change-address enforcement
-- maximum transaction fee cap
-- maximum output-count cap
-- builder action/account summary must match the original request
+- root `aiken.toml` pinned to Aiken `v1.1.22`, Plutus V3 and stdlib `v3.1.0`
+- real `validators/collateral.ak`
+- owner-signature enforcement
+- nonce progression on continuing state
+- deposit/withdraw balance-transition checks
+- emergency owner exit path
+- unsupported script purposes reject by default
 
-The hardened builder path is additive: `prepareHardened` can be required for production without breaking the existing development interface.
+### Milestone 22 — Perpetual position validator
 
-### Milestone 17 — Oracle circuit breaker
+- real `validators/perpetual.ak`
+- immutable owner / market / side identity across continuing position state
+- positive notional, collateral and entry-price invariants
+- nonce progression
+- bounded increase/reduce state transitions
+- owner signature required for position mutation/close
 
-- existing fresh multi-source quorum retained
-- abrupt price-jump rejection
-- source-set continuity checks
-- rolling TWAP calculation
-- maximum quorum-vs-TWAP deviation guard
-- anomalous prices fail closed instead of flowing into liquidation/settlement decisions
+The TypeScript risk engine remains an off-chain preflight. The Aiken script becomes the authoritative spend predicate once deployed.
 
-### Milestone 18 — Market risk + insurance controls
+### Milestone 23 — Options lifecycle validator
 
-- total open-interest cap
-- directional skew cap
-- per-position notional cap
-- notional-based leverage tiers
-- automatic reduce-only condition when insurance reserves fall below a configured floor
-- insurance-loss accounting
-- explicit bad-debt calculation
-- deterministic ADL candidate ranking foundation
+- real parameterized `validators/options.ak`
+- immutable option-series identity across collateral additions
+- owner-authorized collateral additions
+- explicit settlement authority parameter
+- expiry and positive settlement-price checks
+- settled/active state constraints
+- owner close path after settlement/expiry
 
-### Milestone 19 — Emergency governance
+The settlement authority must ultimately be tied to the reviewed oracle/settlement design before production deployment.
 
-- NORMAL / REDUCE_ONLY / SETTLEMENT_ONLY / PAUSED modes
-- per-mode action allowlists
-- governor-only timelocked configuration proposals
-- payload-hash binding
-- proposal expiry
-- guardian may tighten emergency mode immediately
-- guardian cannot unpause/relax emergency state without governor authority
+### Milestone 24 — CIP-0057 blueprint integrity + deployment binding
 
-### Milestone 20 — Security/release gate
+- `aiken check` and `aiken build` run in CI
+- generated `plutus.json` must contain collateral, perpetual and options spend validators
+- compiled validator code is SHA-256 fingerprinted
+- validator script hashes are format-checked when present
+- `artifacts/validator-manifest.json` is generated from the actual blueprint
+- deployment evidence must bind script address/hash back to the exact compiled-code fingerprint
+- code substitution or wrong-network deployment evidence fails closed
 
-- adversarial hardening test suite
-- critical dependency audit in CI
-- browser security headers
-- anti-framing policy
-- restrictive referrer/permissions policies
-- explicit production evidence requirements
-- package version bumped to `0.4.0`
+### Milestone 25 — Cardano lifecycle release evidence
+
+- release evidence records only hashes/receipts, never wallet secrets or signing keys
+- prepare/sign/assemble/submit/confirm evidence is validated
+- request IDs and transaction hashes must be unique
+- confirmed-slot and timestamp ordering is enforced
+- core lifecycle requires confirmed evidence for:
+  - collateral deposit
+  - perpetual open
+  - perpetual close
+  - option settlement
+- `/api/readiness` now requires Aiken, blueprint, deployment-binding and end-to-end lifecycle evidence
+- CI uploads `plutus.json` + validator manifest as a build artifact
+- package version `0.5.0`
 
 ## Cardano execution architecture
 
-The browser connects through CIP-30. A trusted backend transaction builder constructs unsigned CBOR. The wallet signs the transaction body and returns witnesses. A trusted assembler combines the unsigned transaction with the witness set. The final signed transaction is then submitted and the indexer/chain confirmation becomes authoritative application state.
+The browser connects through CIP-30. A trusted backend transaction builder constructs unsigned CBOR. The wallet signs the transaction body and returns witnesses. A trusted assembler combines the unsigned transaction with the witness set. The final signed transaction is submitted and chain/indexer confirmation becomes authoritative application state.
 
-For hardened production mode, the builder response must additionally include a transaction summary that passes Symbiotic's transaction firewall before wallet signing/submission.
+For hardened production mode, builder responses also pass Symbiotic's transaction firewall before signing/submission.
 
-## Current on-chain boundary
+## On-chain build
 
-**Compiled and independently reviewed Cardano validators are still required before Symbiotic should be considered live on testnet or mainnet.** The TypeScript validator mirrors, execution firewall and release gates are defense-in-depth controls; they do not replace on-chain validation.
+```bash
+npm install -g @aiken-lang/aikup
+aikup v1.1.22
+aiken check
+aiken build
+npm run contracts:verify
+npm run contracts:manifest
+```
 
-The hardened readiness gate therefore remains fail-closed until deployed validator addresses/hashes, provider/indexer/builder endpoints, oracle sources, pinned validator artifacts and release-security evidence are configured.
+`aiken build` generates the CIP-0057 `plutus.json`. CI verifies the expected validator titles and exports code fingerprints from that exact artifact.
 
 ## Environment
 
@@ -116,13 +111,17 @@ SYMBIOTIC_OPTIONS_VALIDATOR_ADDRESS=addr_test1...
 SYMBIOTIC_OPTIONS_VALIDATOR_HASH=...
 ```
 
-Hardened release evidence:
+Release evidence:
 
 ```bash
 SYMBIOTIC_PROTOCOL_TESTS_PASSED=true
 SYMBIOTIC_EXECUTION_TESTS_PASSED=true
 SYMBIOTIC_HARDENING_TESTS_PASSED=true
+SYMBIOTIC_AIKEN_CHECK_PASSED=true
+SYMBIOTIC_BLUEPRINT_VERIFIED=true
 SYMBIOTIC_VALIDATOR_ARTIFACTS_PINNED=true
+SYMBIOTIC_VALIDATOR_DEPLOYMENTS_BOUND=true
+SYMBIOTIC_E2E_LIFECYCLE_PASSED=true
 SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED=true
 SYMBIOTIC_SECURITY_CONTACT=security@example.com
 SYMBIOTIC_EMERGENCY_RUNBOOK_URL=https://...
@@ -139,14 +138,19 @@ npm audit --audit-level=critical
 npm run typecheck
 npm test
 npm run build
+
+aiken check
+aiken build
+npm run contracts:verify
+npm run contracts:manifest
 ```
 
-## Remaining on-chain work
+## Remaining before a real public testnet release
 
-1. write and compile collateral/perpetual/options validators in Aiken
-2. property/invariant-test the compiled validators
-3. pin generated CIP-0057 blueprint artifacts and script hashes to a release
-4. deploy first to Preview/Preprod
-5. connect real independent oracle feeds and transaction provider
-6. run end-to-end wallet → firewall → sign → assemble → submit → index → confirm scenarios
-7. external security review before any mainnet enablement
+1. compile the Aiken validators cleanly in CI and review execution budgets
+2. add transaction-level Aiken property/state-machine tests around continuing outputs and malicious batching
+3. decide/finalize the on-chain oracle or settlement-authority design for options and liquidations
+4. parameterize and deploy validators to Preview/Preprod
+5. bind deployed addresses/hashes to the generated validator manifest
+6. execute wallet → firewall → sign → assemble → submit → index → confirm lifecycle evidence
+7. external smart-contract review before any mainnet enablement

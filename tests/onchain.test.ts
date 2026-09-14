@@ -13,6 +13,7 @@ const H64B = "b".repeat(64);
 const H64C = "c".repeat(64);
 const H64D = "d".repeat(64);
 const H56 = "e".repeat(56);
+const PREPROD_NOW = new Date("2026-09-14T10:06:00.000Z").getTime();
 
 function manifest(): ValidatorArtifactManifest {
   return {
@@ -63,22 +64,14 @@ test("compiled validator manifest requires all four Symbiotic validators", () =>
 });
 
 test("deployment evidence binds all compiled validators", () => {
-  const result = bindDeploymentEvidence({
-    manifest: manifest(),
-    network: "preprod",
-    deployments: deployments()
-  });
+  const result = bindDeploymentEvidence({ manifest: manifest(), network: "preprod", deployments: deployments() });
   assert.equal(result.validators.length, 4);
 });
 
 test("deployment evidence rejects code fingerprint substitution", () => {
   const bad = deployments();
   bad[0] = { ...bad[0], compiledCodeSha256: H64B };
-  assert.throws(() => bindDeploymentEvidence({
-    manifest: manifest(),
-    network: "preprod",
-    deployments: bad
-  }), /fingerprint mismatch/);
+  assert.throws(() => bindDeploymentEvidence({ manifest: manifest(), network: "preprod", deployments: bad }), /fingerprint mismatch/);
 });
 
 test("release evidence requires perp, options and Notional lifecycle actions", () => {
@@ -95,7 +88,7 @@ test("Preprod evidence fails closed when Notional settlement is missing", () => 
     deployments: deployments(),
     executions: bundle,
     generatedAt: "2026-09-14T10:05:00.000Z"
-  });
+  }, PREPROD_NOW);
   assert.equal(result.ready, false);
   assert.deepEqual(result.missingActions, ["SETTLE_NOTIONAL"]);
 });
@@ -107,16 +100,24 @@ test("Preprod evidence turns ready only with all four validators and six lifecyc
     deployments: deployments(),
     executions: executions(),
     generatedAt: "2026-09-14T10:05:00.000Z"
-  });
+  }, PREPROD_NOW);
   assert.equal(result.ready, true);
   assert.equal(result.validatorCount, 4);
   assert.equal(result.executionCount, 6);
+  assert.equal(result.evidenceAgeMs, 60_000);
+});
+
+test("Preprod evidence rejects stale lifecycle bundles", () => {
+  assert.throws(() => evaluatePreprodEvidence({
+    network: "preprod",
+    artifactManifest: manifest(),
+    deployments: deployments(),
+    executions: executions(),
+    generatedAt: "2026-09-14T07:00:00.000Z"
+  }, PREPROD_NOW), /stale/);
 });
 
 test("release evidence rejects duplicate transaction receipts", () => {
   const base = executions()[0];
-  assert.throws(() => evaluateE2EReleaseEvidence({
-    network: "preprod",
-    executions: [base, { ...base, requestId: "request-999", action: "OPEN_PERP" }]
-  }), /Duplicate E2E transaction hash/);
+  assert.throws(() => evaluateE2EReleaseEvidence({ network: "preprod", executions: [base, { ...base, requestId: "request-999", action: "OPEN_PERP" }] }), /Duplicate E2E transaction hash/);
 });

@@ -39,12 +39,14 @@ const H56A = "1".repeat(56);
 const H56B = "2".repeat(56);
 const H56C = "3".repeat(56);
 const H56D = "4".repeat(56);
+const H56E = "5".repeat(56);
 
 const titles: SymbioticValidatorTitle[] = [
   "collateral.collateral.spend",
   "perpetual.perpetual.spend",
   "options.options.spend",
-  "notional.notional.spend"
+  "notional.notional.spend",
+  "registry.registry.spend"
 ];
 
 const parameterMap: Record<SymbioticValidatorTitle, AppliedValidatorParameter[]> = {
@@ -66,6 +68,10 @@ const parameterMap: Record<SymbioticValidatorTitle, AppliedValidatorParameter[]>
   ],
   "notional.notional.spend": [
     { name: "solver_authority", cborHex: "0a" }
+  ],
+  "registry.registry.spend": [
+    { name: "governor_authority", cborHex: "0b" },
+    { name: "guardian_authority", cborHex: "0c" }
   ]
 };
 
@@ -78,7 +84,7 @@ function artifactManifest(): ValidatorArtifactManifest {
     validators: titles.map((title, index) => ({
       title,
       hash: null,
-      compiledCodeSha256: [D64B, D64C, D64D, D64E][index],
+      compiledCodeSha256: [D64B, D64C, D64D, D64E, D64F][index],
       compiledBytes: 200 + index * 50,
       parameterized: true
     }))
@@ -115,8 +121,8 @@ function confirmation(
 
 function parameterizedInstances(): ParameterizedValidatorInstance[] {
   const manifest = artifactManifest();
-  const appliedHashes = [H56A, H56B, H56C, H56D];
-  const addresses = ["q", "w", "e", "r"].map((letter) => `addr_test1${letter.repeat(48)}`);
+  const appliedHashes = [H56A, H56B, H56C, H56D, H56E];
+  const addresses = ["q", "w", "e", "r", "t"].map((letter) => `addr_test1${letter.repeat(48)}`);
   return titles.map((title, index) => {
     const parameters = parameterMap[title];
     const deploymentTxHash = txHash(index + 1);
@@ -224,14 +230,11 @@ test("milestone 50 binds ordered validator parameters to final reference-script 
   const manifest = artifactManifest();
   const instances = parameterizedInstances();
   const result = bindParameterizedDeployment({ manifest, instances, network: "preprod" });
-  assert.equal(result.instances.length, 4);
+  assert.equal(result.instances.length, 5);
   assert.match(result.deploymentDigest, /^[0-9a-f]{64}$/);
 
   const wrong = parameterizedInstances();
-  wrong[1] = {
-    ...wrong[1],
-    parameters: [wrong[1].parameters[1], wrong[1].parameters[0], ...wrong[1].parameters.slice(2)]
-  };
+  wrong[1] = { ...wrong[1], parameters: [wrong[1].parameters[1], wrong[1].parameters[0], ...wrong[1].parameters.slice(2)] };
   assert.throws(() => bindParameterizedDeployment({ manifest, instances: wrong, network: "preprod" }), /parameter 0 must be oracle_authority/);
 });
 
@@ -244,7 +247,7 @@ test("milestone 51 verifies fresh Cardano block/slot/UTxO confirmation proofs", 
   assert.throws(() => validateCardanoConfirmation({ ...proof, observedAt: new Date(NOW - 11 * 60 * 1000).toISOString() }, { ...confirmationPolicy, expectedNetwork: "preprod" }, NOW), /stale/);
 });
 
-test("milestone 51 binds all four applied validators to confirmed reference-script UTxOs", () => {
+test("milestone 51 binds all five applied validators to confirmed reference-script UTxOs", () => {
   const instances = parameterizedInstances();
   const result = validateReferenceScriptDeploymentBundle({
     receipts: referenceReceipts(instances),
@@ -253,8 +256,8 @@ test("milestone 51 binds all four applied validators to confirmed reference-scri
     policy: confirmationPolicy,
     nowMs: NOW
   });
-  assert.equal(result.receipts.length, 4);
-  assert.equal(result.references.length, 4);
+  assert.equal(result.receipts.length, 5);
+  assert.equal(result.references.length, 5);
   assert.match(result.digest, /^[0-9a-f]{64}$/);
 
   const substituted = referenceReceipts(instances);
@@ -262,22 +265,15 @@ test("milestone 51 binds all four applied validators to confirmed reference-scri
   assert.throws(() => validateReferenceScriptDeploymentBundle({
     receipts: substituted,
     expected: instances.map((instance) => ({ title: instance.title, parameterDigest: instance.parameterDigest, appliedScriptHash: instance.appliedScriptHash })),
-    network: "preprod",
-    policy: confirmationPolicy,
-    nowMs: NOW
+    network: "preprod", policy: confirmationPolicy, nowMs: NOW
   }), /hash mismatch/);
 
   const wrongOnChain = referenceReceipts(instances);
-  wrongOnChain[0] = {
-    ...wrongOnChain[0],
-    confirmation: confirmation(1, [], H56B)
-  };
+  wrongOnChain[0] = { ...wrongOnChain[0], confirmation: confirmation(1, [], H56B) };
   assert.throws(() => validateReferenceScriptDeploymentBundle({
     receipts: wrongOnChain,
     expected: instances.map((instance) => ({ title: instance.title, parameterDigest: instance.parameterDigest, appliedScriptHash: instance.appliedScriptHash })),
-    network: "preprod",
-    policy: confirmationPolicy,
-    nowMs: NOW
+    network: "preprod", policy: confirmationPolicy, nowMs: NOW
   }), /reference-script hash/);
 });
 
@@ -286,24 +282,9 @@ test("milestones 52-54 require conserved funding/options and limit-safe competit
   const result = validateLiveEconomicEvidenceBundle({ bundle, policy: confirmationPolicy, nowMs: NOW });
   assert.equal(result.verified, true);
   assert.equal(result.transactions.length, 3);
-
-  assert.throws(() => validateLiveEconomicEvidenceBundle({
-    bundle: { ...bundle, funding: { ...bundle.funding, receiverUnits: "900" } },
-    policy: confirmationPolicy,
-    nowMs: NOW
-  }), /Funding transfer is not conserved/);
-
-  assert.throws(() => validateLiveEconomicEvidenceBundle({
-    bundle: { ...bundle, optionSettlement: { ...bundle.optionSettlement, writerResidualUnits: "7800" } },
-    policy: confirmationPolicy,
-    nowMs: NOW
-  }), /does not conserve locked collateral/);
-
-  assert.throws(() => validateLiveEconomicEvidenceBundle({
-    bundle: { ...bundle, notionalSettlement: { ...bundle.notionalSettlement, executionPrice: 60_100 } },
-    policy: confirmationPolicy,
-    nowMs: NOW
-  }), /breached user limit/);
+  assert.throws(() => validateLiveEconomicEvidenceBundle({ bundle: { ...bundle, funding: { ...bundle.funding, receiverUnits: "900" } }, policy: confirmationPolicy, nowMs: NOW }), /Funding transfer is not conserved/);
+  assert.throws(() => validateLiveEconomicEvidenceBundle({ bundle: { ...bundle, optionSettlement: { ...bundle.optionSettlement, writerResidualUnits: "7800" } }, policy: confirmationPolicy, nowMs: NOW }), /does not conserve locked collateral/);
+  assert.throws(() => validateLiveEconomicEvidenceBundle({ bundle: { ...bundle, notionalSettlement: { ...bundle.notionalSettlement, executionPrice: 60_100 } }, policy: confirmationPolicy, nowMs: NOW }), /breached user limit/);
 });
 
 test("milestone 55 verifies an object-level live Preprod release bundle", () => {
@@ -312,75 +293,34 @@ test("milestone 55 verifies an object-level live Preprod release bundle", () => 
   const receipts = referenceReceipts(instances);
   const economics = economicEvidence(instances);
   const certificate = baseCertificate();
-
   const deployment = bindParameterizedDeployment({ manifest, instances, network: "preprod" });
-  const references = validateReferenceScriptDeploymentBundle({
-    receipts,
-    expected: instances.map((instance) => ({ title: instance.title, parameterDigest: instance.parameterDigest, appliedScriptHash: instance.appliedScriptHash })),
-    network: "preprod",
-    policy: confirmationPolicy,
-    nowMs: NOW
-  });
+  const references = validateReferenceScriptDeploymentBundle({ receipts, expected: instances.map((instance) => ({ title: instance.title, parameterDigest: instance.parameterDigest, appliedScriptHash: instance.appliedScriptHash })), network: "preprod", policy: confirmationPolicy, nowMs: NOW });
   const economic = validateLiveEconomicEvidenceBundle({ bundle: economics, policy: confirmationPolicy, nowMs: NOW });
-  const release = validateReleaseCertificate(certificate, {
-    expectedNetwork: "preprod",
-    minimumGovernorApprovals: 2,
-    maximumLifetimeMs: 4 * 60 * 60 * 1000
-  }, NOW);
+  const release = validateReleaseCertificate(certificate, { expectedNetwork: "preprod", minimumGovernorApprovals: 2, maximumLifetimeMs: 4 * 60 * 60 * 1000 }, NOW);
   const confirmationDigest = computeConfirmationBundleDigest({ referenceScriptReceipts: receipts, economicEvidence: economics });
   const parameterSchemaSha256 = "d".repeat(64);
   const txHashes = [...references.deploymentTransactions, ...economic.transactions];
 
   const attestation: PreprodReleaseAttestation = {
-    network: "preprod",
-    protocolVersion: "0.10.0",
-    deploymentEpoch: "preprod-epoch-001",
-    parameterSchemaSha256,
-    parameterizedDeploymentSha256: deployment.deploymentDigest,
-    referenceScriptBundleSha256: references.digest,
-    confirmationBundleSha256: confirmationDigest,
-    liveEconomicEvidenceSha256: economic.digest,
-    baseReleaseCertificateSha256: release.digest,
-    lifecycleTxHashes: txHashes,
-    issuedAt: new Date(NOW - 5 * 60 * 1000).toISOString(),
-    expiresAt: new Date(NOW + 55 * 60 * 1000).toISOString(),
-    governorApprovals: ["gov-a", "gov-b"]
+    network: "preprod", protocolVersion: "0.10.0", deploymentEpoch: "preprod-epoch-001",
+    parameterSchemaSha256, parameterizedDeploymentSha256: deployment.deploymentDigest,
+    referenceScriptBundleSha256: references.digest, confirmationBundleSha256: confirmationDigest,
+    liveEconomicEvidenceSha256: economic.digest, baseReleaseCertificateSha256: release.digest,
+    lifecycleTxHashes: txHashes, issuedAt: new Date(NOW - 5 * 60 * 1000).toISOString(),
+    expiresAt: new Date(NOW + 55 * 60 * 1000).toISOString(), governorApprovals: ["gov-a", "gov-b"]
   };
 
   const verifiedAttestation = validatePreprodReleaseAttestation({
     attestation,
-    expected: {
-      parameterSchemaSha256,
-      parameterizedDeploymentSha256: deployment.deploymentDigest,
-      referenceScriptBundleSha256: references.digest,
-      confirmationBundleSha256: confirmationDigest,
-      liveEconomicEvidenceSha256: economic.digest,
-      baseReleaseCertificateSha256: release.digest,
-      requiredTxHashes: txHashes
-    },
-    minimumGovernorApprovals: 2,
-    maximumLifetimeMs: 2 * 60 * 60 * 1000,
-    nowMs: NOW
+    expected: { parameterSchemaSha256, parameterizedDeploymentSha256: deployment.deploymentDigest, referenceScriptBundleSha256: references.digest, confirmationBundleSha256: confirmationDigest, liveEconomicEvidenceSha256: economic.digest, baseReleaseCertificateSha256: release.digest, requiredTxHashes: txHashes },
+    minimumGovernorApprovals: 2, maximumLifetimeMs: 2 * 60 * 60 * 1000, nowMs: NOW
   });
   assert.equal(verifiedAttestation.verified, true);
 
   const live = evaluateLivePreprodReleaseBundle({
-    bundle: {
-      network: "preprod",
-      parameterSchemaSha256,
-      artifactManifest: manifest,
-      parameterizedValidators: instances,
-      referenceScriptReceipts: receipts,
-      economicEvidence: economics,
-      baseReleaseCertificate: certificate,
-      attestation
-    },
+    bundle: { network: "preprod", parameterSchemaSha256, artifactManifest: manifest, parameterizedValidators: instances, referenceScriptReceipts: receipts, economicEvidence: economics, baseReleaseCertificate: certificate, attestation },
     confirmationPolicy,
-    releaseCertificatePolicy: {
-      expectedNetwork: "preprod",
-      minimumGovernorApprovals: 2,
-      maximumLifetimeMs: 4 * 60 * 60 * 1000
-    },
+    releaseCertificatePolicy: { expectedNetwork: "preprod", minimumGovernorApprovals: 2, maximumLifetimeMs: 4 * 60 * 60 * 1000 },
     minimumGovernorApprovals: 2,
     maximumAttestationLifetimeMs: 2 * 60 * 60 * 1000,
     nowMs: NOW
@@ -390,17 +330,7 @@ test("milestone 55 verifies an object-level live Preprod release bundle", () => 
 
   assert.throws(() => validatePreprodReleaseAttestation({
     attestation: { ...attestation, parameterizedDeploymentSha256: "e".repeat(64) },
-    expected: {
-      parameterSchemaSha256,
-      parameterizedDeploymentSha256: deployment.deploymentDigest,
-      referenceScriptBundleSha256: references.digest,
-      confirmationBundleSha256: confirmationDigest,
-      liveEconomicEvidenceSha256: economic.digest,
-      baseReleaseCertificateSha256: release.digest,
-      requiredTxHashes: txHashes
-    },
-    minimumGovernorApprovals: 2,
-    maximumLifetimeMs: 2 * 60 * 60 * 1000,
-    nowMs: NOW
+    expected: { parameterSchemaSha256, parameterizedDeploymentSha256: deployment.deploymentDigest, referenceScriptBundleSha256: references.digest, confirmationBundleSha256: confirmationDigest, liveEconomicEvidenceSha256: economic.digest, baseReleaseCertificateSha256: release.digest, requiredTxHashes: txHashes },
+    minimumGovernorApprovals: 2, maximumLifetimeMs: 2 * 60 * 60 * 1000, nowMs: NOW
   }), /parameterized deployment digest mismatch/);
 });

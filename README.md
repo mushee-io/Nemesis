@@ -6,21 +6,29 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 2. **Options** — European calls and puts with collateralized writing, deterministic expiry settlement and payout conservation.
 3. **Notional Market** — confidential pre-trade intent with committed competing solver quotes and deterministic best execution.
 
-The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano evidence.
+The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, balance or frontend success message is never treated as settlement without Cardano evidence.
 
-## Current protocol depth — v0.14.0
+## Current protocol depth — v0.15.0
 
-Milestones 50–74 built the five-validator deployment/evidence layer, Protocol Registry, stable finality, cross-product solvency, migration/risk/operator governance, review transparency, deterministic recovery, oracle independence, settlement disputes, operator accountability, global invariants and V9 critical review.
+Milestones 50–85 built the five-validator deployment/evidence layer, Protocol Registry, stable finality, solvency and migration controls, V9 critical safety, plus V10 execution/liveness controls.
 
-Milestones **80–85** add mixed execution-liveness hardening:
+Milestones **86–100** finalize the Cardano public-testnet integration around **Preprod**:
 
-- independent provider quorum, deterministic provider selection and failover cooldowns
-- ledger-error classification and safe stale-UTxO transaction rebuilds
-- bounded dependent transaction chaining with ancestor invalidation
-- deterministic `NORMAL -> LIMIT_ONLY -> REDUCE_ONLY -> SETTLEMENT_ONLY -> PAUSED` market modes
-- review-only Keeper/Solver/Builder failover ranking with bond and infrastructure-diversity requirements
-- a V10 liveness policy root committed by the Protocol Registry
-- a V10 liveness review that recomputes every policy/evidence domain and still returns `activationAllowed: false`
+- canonical Preprod profile: `--testnet-magic 1`, CIP-30 network id `0`, `addr_test1` addresses
+- independent provider UTxO reconciliation
+- CIP-30 wallet preflight
+- exact five-validator/reference-script deployment manifest
+- strict Preprod transaction plans
+- evaluated unsigned-CBOR transaction builder gateway
+- full Perpetual lifecycle including funding, normal close and liquidation
+- full Options write/buy/settle/close lifecycle with value conservation
+- Notional competitive fill plus independent cancel lifecycle
+- Preprod oracle/operator identity bindings
+- stable reference-script and lifecycle finality
+- independent indexer/canonical-state reconciliation
+- mandatory stale-input, validity, timeout, provider, indexer, oracle and reorg recovery drills
+- one complete `testnet_root` committed by the Aiken Registry
+- V11 finalized-testnet verifier
 
 Detailed architecture:
 
@@ -28,6 +36,21 @@ Detailed architecture:
 - `docs/milestones-60-66-critical.md`
 - `docs/milestones-66-74.md`
 - `docs/milestones-80-85.md`
+- `docs/milestones-86-100-testnet.md`
+
+## Canonical Cardano testnet
+
+Symbiotic's finalized public testnet is **Cardano Preprod**.
+
+```text
+network               preprod
+cardano-cli magic     1
+CIP-30 network id     0
+payment prefix        addr_test1
+stake prefix          stake_test1
+```
+
+Preview and Mainnet are deliberately rejected by the V11 testnet profile.
 
 ## Validator set
 
@@ -39,99 +62,110 @@ Symbiotic requires five compiled and parameterized Plutus V3 spend validators:
 4. `notional.notional.spend`
 5. `registry.registry.spend`
 
-The Registry now anchors:
+The Registry anchors the deployment/state/security roots accumulated through earlier milestones plus:
 
-- deployment epoch
-- parameter-schema digest
-- parameterized-deployment digest
-- canonical protocol state root
-- risk-policy root
-- operator-set root
-- settlement-safety root
-- migration root
-- review-transparency root
-- deterministic recovery root
-- fee/insurance economics root
-- oracle-independence policy root
-- settlement dispute root
-- operator-accountability root
-- global invariant root
-- upgrade-recovery root
-- **liveness policy root**
-- oracle round
-- funding round
-- pause state
-- monotonic nonce
+- V10 `liveness_root`
+- **V11 `testnet_root`**
 
-`Advance` creates the next deployment generation. `Checkpoint` updates in-epoch operational and safety commitments. `Pause` and `Resume` preserve every committed root, including the V10 liveness root.
+`Pause` and `Resume` preserve the testnet root. `Advance`/`Checkpoint` may only update it through the authorized Registry transition.
 
-Because Aiken parameters and Registry datum/redeemer logic affect compiled code, changes create a new Registry script fingerprint and therefore a new deployment generation.
+Because the Registry datum/redeemer changed, v0.15.0 has a new compiled Registry fingerprint and therefore requires a fresh parameterized Preprod deployment generation.
 
-## Mixed execution resilience
-
-Provider health is treated as quorum evidence rather than a single endpoint response. Healthy read providers must be fresh, close in chain tip and distributed across independent provider groups. Submission providers are evaluated separately.
-
-Retry behavior is classified by ledger failure:
+## Finalized transaction path
 
 ```text
-BadInputsUTxO            -> rebuild from fresh state and fresh inputs
-OutsideValidityInterval  -> rebuild validity interval
-provider timeout         -> verify transaction presence before resubmission
-unsafe/unknown failures  -> fail closed
+independent providers
+        ↓
+reconciled Preprod UTxOs
+        ↓
+strict transaction plan
+        ↓
+evaluated builder gateway
+        ↓
+unsigned transaction CBOR
+        ↓
+CIP-30 wallet network preflight
+        ↓
+wallet signature / submission
+        ↓
+Cardano confirmation + stability window
+        ↓
+indexer/state reconciliation
+        ↓
+V11 evidence root
 ```
 
-Dependent Cardano transaction chains are bounded. Every link consumes the immediate predecessor output, keeps adequate validity headroom, uses unique state/collateral references and preserves shared reference inputs. Failure of one ancestor invalidates every descendant from that point.
+The builder response must be cryptographically bound to the exact transaction-plan digest before the browser wallet is asked to sign.
 
-## Degraded market control
+## Required product rehearsal
 
-Symbiotic maps infrastructure/economic health to deterministic market capability:
+Perpetuals:
 
 ```text
-NORMAL
-  -> LIMIT_ONLY
-  -> REDUCE_ONLY
-  -> SETTLEMENT_ONLY
-  -> PAUSED
+DEPOSIT_COLLATERAL
+→ OPEN_PERP
+→ APPLY_FUNDING
+→ CLOSE_PERP
+→ OPEN_PERP
+→ LIQUIDATE_PERP
+→ WITHDRAW_COLLATERAL
 ```
 
-Oracle/finality failure forces settlement-only behavior; insolvency or unresolved critical disputes force pause. Recovery to a less restrictive mode requires both a minimum elapsed duration and repeated healthy observations.
-
-## Operator failover boundary
-
-Keeper, Solver and Builder replacement candidates may be reviewed using heartbeat, bond, strike history, region and infrastructure-provider diversity. Ranking is deterministic, but the result is deliberately non-executable:
+Options:
 
 ```text
-reviewReady: true
-executionAllowed: false
+WRITE_OPTION → BUY_OPTION → SETTLE_OPTION → CLOSE_OPTION
 ```
 
-CI is therefore evidence and review infrastructure, not authority over protocol operators.
-
-## V10 review boundary
-
-V10 independently hashes:
-
-- provider failover policy
-- transaction rebuild policy
-- transaction-chain policy
-- degraded-market policy
-- operator-failover review policy
-
-These compose into the Registry `liveness_root`. The V10 review then validates current evidence against each policy plus the Registry commitment and requires at least three independent reviewers.
-
-A fully valid V10 review returns:
+with:
 
 ```text
-reviewReady: true
-activationAllowed: false
+buyer payout + writer residual + protocol fee = locked collateral
 ```
+
+Notional:
+
+```text
+COMMIT_NOTIONAL → FILL_NOTIONAL → COMMIT_NOTIONAL → CANCEL_NOTIONAL
+```
+
+The fill requires competing solvers and cannot violate the user's committed execution limit.
+
+## Failure/recovery rehearsal
+
+V11 requires all of the following before a real testnet-finalized certificate can be produced:
+
+- stale-input rebuild from fresh state
+- expired validity-window rebuild
+- transaction lookup before retry after ambiguous provider timeout
+- provider failover
+- indexer-lag degradation
+- stale-oracle degradation
+- chain rollback/reorg recovery
+- zero detected data loss
+
+## V11 finalized-testnet boundary
+
+`lib/testnet-finalization-v11.ts` recomputes the complete Preprod evidence graph and requires the Registry `testnet_root` and `state_root` to match that evidence.
+
+A valid result is:
+
+```text
+version: V11
+network: preprod
+networkMagic: 1
+testnetFinalized: true
+mainnetActivationAllowed: false
+```
+
+Unit tests use deterministic fixtures to prove verifier behavior. They do **not** claim that the real public Preprod lifecycle transactions have already been executed.
 
 ## Contract build
 
 CI pins Aiken `v1.1.22` and runs:
 
 ```bash
-aiken check --max-success=3500
+aiken check --max-success=5000
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -150,20 +184,10 @@ npm test
 npm run build
 ```
 
-CI additionally records:
-
-- TAP test evidence + SHA-256
-- production Next.js build digest
-- CycloneDX SBOM
-- package metadata fingerprints
-- deep-release source fingerprints
-- critical-control source fingerprints
-- V9 critical-source fingerprints
-- V10 liveness-source fingerprints
-- validator / Registry contract fingerprints
+CI additionally records TAP evidence, Next build fingerprints, CycloneDX SBOM, package metadata fingerprints, V9/V10 provenance, the complete V11 testnet-source fingerprint and compiled validator/Registry fingerprints.
 
 ## Current deployment boundary
 
-The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator control architecture and the v0.14.0 V10 execution-liveness review layer.
+The repository is now structurally finalized for **Cardano Preprod** through Milestone 100.
 
-It does **not** claim that this newest Registry generation is deployed, that previous Preprod evidence remains valid for the changed Registry fingerprint, or that any live network/operator failover has been activated. Real deployment still requires fresh on-chain evidence for this exact compiled generation plus external manual authorization.
+It does **not** claim that the v0.15.0 validators are already deployed or that `testnetFinalized: true` has been produced from real public-chain receipts. To make that claim, the exact v0.15.0 validator generation must be parameterized and deployed to Preprod and the real 15-product-transaction rehearsal, five reference-script deployments, finality/indexer reconciliation and failure drills must be captured as V11 evidence.

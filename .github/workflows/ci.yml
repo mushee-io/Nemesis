@@ -23,7 +23,7 @@ jobs:
           sha256sum artifacts/test.tap > artifacts/test.sha256
       - run: npm run build
       - run: node scripts/hash-directory.mjs .next artifacts/web-build-digest.json
-      - name: Generate supply-chain and V10 liveness evidence
+      - name: Generate supply-chain and V11 finalized-testnet evidence
         run: |
           mkdir -p artifacts
           npm sbom --sbom-format=cyclonedx > artifacts/sbom.cdx.json
@@ -33,6 +33,7 @@ jobs:
           sha256sum lib/registry-critical-state.ts lib/protocol-migration.ts lib/risk-parameter-governance.ts lib/withdrawal-settlement.ts lib/critical-liquidation.ts lib/operator-set-governance.ts lib/settlement-safety-root.ts lib/production-review-certificate.ts > artifacts/critical-control-sources.sha256
           sha256sum lib/review-transparency.ts lib/state-recovery.ts lib/protocol-economics.ts lib/oracle-independence.ts lib/settlement-disputes.ts lib/operator-accountability.ts lib/global-invariants.ts lib/upgrade-recovery.ts lib/critical-review-v9.ts > artifacts/v9-critical-sources.sha256
           sha256sum lib/provider-failover.ts lib/transaction-rebuild.ts lib/bounded-transaction-chain.ts lib/degraded-market-control.ts lib/operator-failover-plan.ts lib/liveness-policy-root.ts lib/registry-liveness-v10.ts lib/liveness-review-v10.ts > artifacts/v10-liveness-sources.sha256
+          sha256sum lib/cardano-testnet-profile.ts lib/testnet-provider-reconciliation.ts lib/testnet-wallet-preflight.ts lib/testnet-deployment-manifest.ts lib/testnet-transaction-plan.ts lib/testnet-builder-gateway.ts lib/testnet-lifecycle-core.ts lib/testnet-perp-lifecycle.ts lib/testnet-options-lifecycle.ts lib/testnet-notional-lifecycle.ts lib/testnet-operator-bindings.ts lib/testnet-finality-reconciliation.ts lib/testnet-indexer-reconciliation.ts lib/testnet-failure-evidence.ts lib/testnet-final-evidence.ts lib/registry-testnet-v11.ts lib/testnet-finalization-v11.ts lib/testnet-release-gate-v11.ts > artifacts/v11-testnet-sources.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: symbiotic-web-build-provenance
@@ -47,6 +48,7 @@ jobs:
             artifacts/critical-control-sources.sha256
             artifacts/v9-critical-sources.sha256
             artifacts/v10-liveness-sources.sha256
+            artifacts/v11-testnet-sources.sha256
           if-no-files-found: warn
 
   contracts:
@@ -61,7 +63,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check --max-success=3500"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=5000"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json

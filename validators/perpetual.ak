@@ -1,6 +1,8 @@
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/interval
+use cardano/assets
+use cardano/assets.{AssetName, PolicyId}
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
 use symbiotic/invariants.{is_liquidatable}
@@ -24,7 +26,10 @@ pub type PositionRedeemer {
 
 validator perpetual(
   oracle_authority: VerificationKeyHash,
+  keeper_authority: VerificationKeyHash,
   maintenance_bps: Int,
+  collateral_policy: PolicyId,
+  collateral_asset: AssetName,
 ) {
   spend(
     optional_datum: Option<PositionDatum>,
@@ -38,12 +43,16 @@ validator perpetual(
 
     let signed_by_owner = list.has(self.extra_signatories, datum.owner)
     let signed_by_oracle = list.has(self.extra_signatories, oracle_authority)
+    let signed_by_keeper = list.has(self.extra_signatories, keeper_authority)
+    let input_units =
+      assets.quantity_of(own_input.output.value, collateral_policy, collateral_asset)
     let valid_risk_parameter = maintenance_bps > 0 && maintenance_bps <= 5_000
     let valid_base =
       and {
         datum.side == 1 || datum.side == -1,
         datum.size_usd > 0,
         datum.collateral_usd > 0,
+        datum.collateral_usd == input_units,
         datum.entry_price > 0,
         datum.nonce >= 0,
         valid_risk_parameter,
@@ -61,6 +70,8 @@ validator perpetual(
           list.find(
             self.outputs,
             fn(output) {
+              let next_units =
+                assets.quantity_of(output.value, collateral_policy, collateral_asset)
               when output.datum is {
                 InlineDatum(raw) ->
                   if raw is PositionDatum {
@@ -72,6 +83,8 @@ validator perpetual(
                       raw.nonce == datum.nonce + 1,
                       raw.size_usd == datum.size_usd + size_delta,
                       raw.collateral_usd == datum.collateral_usd + collateral_delta,
+                      next_units == input_units + collateral_delta,
+                      raw.collateral_usd == next_units,
                       raw.entry_price > 0,
                     }
                   } else {
@@ -91,6 +104,8 @@ validator perpetual(
           list.find(
             self.outputs,
             fn(output) {
+              let next_units =
+                assets.quantity_of(output.value, collateral_policy, collateral_asset)
               when output.datum is {
                 InlineDatum(raw) ->
                   if raw is PositionDatum {
@@ -101,7 +116,8 @@ validator perpetual(
                       raw.side == datum.side,
                       raw.nonce == datum.nonce + 1,
                       raw.size_usd == datum.size_usd - size_delta,
-                      raw.collateral_usd >= 0,
+                      raw.collateral_usd == datum.collateral_usd,
+                      next_units == input_units,
                       raw.entry_price == datum.entry_price,
                     }
                   } else {
@@ -120,6 +136,7 @@ validator perpetual(
           valid_base,
           continuation_count == 0,
           signed_by_oracle,
+          signed_by_keeper,
           self.validity_range |> interval.contains(attested_at_ms),
           is_liquidatable(
             datum.side,

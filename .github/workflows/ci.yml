@@ -15,7 +15,12 @@ jobs:
       - run: npm install
       - run: npm audit --audit-level=high
       - run: npm run typecheck
-      - run: npm test
+      - name: Run deep protocol tests with evidence
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          npm test 2>&1 | tee artifacts/test.tap
+          sha256sum artifacts/test.tap > artifacts/test.sha256
       - run: npm run build
       - run: node scripts/hash-directory.mjs .next artifacts/web-build-digest.json
       - name: Generate supply-chain evidence
@@ -27,6 +32,8 @@ jobs:
         with:
           name: symbiotic-web-build-provenance
           path: |
+            artifacts/test.tap
+            artifacts/test.sha256
             artifacts/web-build-digest.json
             artifacts/sbom.cdx.json
             artifacts/package-lock.sha256
@@ -44,14 +51,16 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check --max-success=750"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=1000"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json
+      - run: sha256sum plutus.json artifacts/validator-manifest.json > artifacts/contracts.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: symbiotic-validator-artifacts
           path: |
             plutus.json
             artifacts/validator-manifest.json
+            artifacts/contracts.sha256
           if-no-files-found: error

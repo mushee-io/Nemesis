@@ -11,6 +11,7 @@ pub type NotionalDatum {
   expiry_ms: Int,
   nonce: Int,
   settled: Int,
+  execution_price: Int,
 }
 
 pub type NotionalRedeemer {
@@ -37,13 +38,15 @@ validator notional(solver_authority: VerificationKeyHash) {
         datum.expiry_ms > 0,
         datum.nonce >= 0,
         datum.settled == 0,
+        datum.execution_price == 0,
       }
     let continuation_count =
       list.count(self.outputs, fn(output) { output.address == own_input.output.address })
 
     when redeemer is {
       Cancel -> owner_signed && valid_active_state && continuation_count == 0
-      CloseReceipt -> owner_signed && datum.settled == 1 && datum.nonce > 0 && continuation_count == 0
+      CloseReceipt ->
+        owner_signed && datum.settled == 1 && datum.nonce > 0 && datum.execution_price > 0 && continuation_count == 0
       Fill(reveal_preimage, execution_price, attested_at_ms) -> {
         expect execution_price > 0
         expect attested_at_ms > 0
@@ -63,6 +66,7 @@ validator notional(solver_authority: VerificationKeyHash) {
                       raw.expiry_ms == datum.expiry_ms,
                       raw.nonce == datum.nonce + 1,
                       raw.settled == 1,
+                      raw.execution_price == execution_price,
                     }
                   } else {
                     False

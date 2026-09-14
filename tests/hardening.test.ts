@@ -66,7 +66,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires deep milestones 35-40 and explicit mainnet enable", () => {
+test("release gate requires deep milestones 40-45 and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -98,11 +98,18 @@ test("release gate requires deep milestones 35-40 and explicit mainnet enable", 
     executionLeaseControlsPassed: true,
     exposureControlsPassed: true,
     canaryRollbackConfigured: true,
+    canaryRollbackDrillPassed: true,
+    solvencyConservationPassed: true,
+    fundingIntegrityPassed: true,
+    optionsSettlementConservationPassed: true,
+    notionalAuctionFairnessPassed: true,
+    chaosRecoveryPassed: true,
+    releaseCertificateVerified: true,
     dependencyAuditReviewed: true,
     securityContactConfigured: true,
     emergencyRunbookConfigured: true
   };
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: false }).ready, false);
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: true }).ready, true);
-  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, stateTransitionBindingPassed: false }, allowMainnet: true }).ready, false);
+  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, solvencyConservationPassed: false }, allowMainnet: true }).ready, false);
 });

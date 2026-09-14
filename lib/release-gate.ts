@@ -21,6 +21,13 @@ export type SecurityEvidence = {
   executionLeaseControlsPassed: boolean;
   exposureControlsPassed: boolean;
   canaryRollbackConfigured: boolean;
+  canaryRollbackDrillPassed: boolean;
+  solvencyConservationPassed: boolean;
+  fundingIntegrityPassed: boolean;
+  optionsSettlementConservationPassed: boolean;
+  notionalAuctionFairnessPassed: boolean;
+  chaosRecoveryPassed: boolean;
+  releaseCertificateVerified: boolean;
 };
 
 export function evaluateReleaseGate(input: {
@@ -48,6 +55,13 @@ export function evaluateReleaseGate(input: {
     { id: "execution-leases", ready: input.evidence.executionLeaseControlsPassed, detail: "Keeper and solver execution must be bounded by one-time expiring leases and operator rate limits." },
     { id: "exposure-controls", ready: input.evidence.exposureControlsPassed, detail: "Global, market, account and withdrawal exposure caps must be active." },
     { id: "canary-rollback", ready: input.evidence.canaryRollbackConfigured, detail: "A staged canary rollout and independently fingerprinted rollback release must be configured." },
+    { id: "rollback-drill", ready: input.evidence.canaryRollbackDrillPassed, detail: "The rollback target must be restored in a timed drill with consistent state and no data loss." },
+    { id: "solvency-conservation", ready: input.evidence.solvencyConservationPassed, detail: "Custody, liabilities, insurance, locked margin and collateral conservation must reconcile." },
+    { id: "funding-integrity", ready: input.evidence.fundingIntegrityPassed, detail: "Perpetual funding rounds must be contiguous, bounded, replay-resistant and value-conserving." },
+    { id: "options-conservation", ready: input.evidence.optionsSettlementConservationPassed, detail: "Options settlement proofs must conserve locked collateral across buyer, writer and protocol outputs." },
+    { id: "notional-auction", ready: input.evidence.notionalAuctionFairnessPassed, detail: "Notional execution must use committed competing solver quotes and deterministic best execution." },
+    { id: "chaos-recovery", ready: input.evidence.chaosRecoveryPassed, detail: "All required provider, indexer, oracle, replay, reorg, withdrawal and rollback fault scenarios must recover within policy." },
+    { id: "release-certificate", ready: input.evidence.releaseCertificateVerified, detail: "A fresh governor-approved release certificate must bind code, contracts, SBOM and all economic/security evidence." },
     { id: "dependency-audit", ready: input.evidence.dependencyAuditReviewed, detail: "Dependency audit findings must be reviewed before release." },
     { id: "security-contact", ready: input.evidence.securityContactConfigured, detail: "A security contact must be configured." },
     { id: "emergency-runbook", ready: input.evidence.emergencyRunbookConfigured, detail: "Emergency response procedures must be configured." }

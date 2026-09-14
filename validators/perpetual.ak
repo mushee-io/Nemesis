@@ -1,7 +1,9 @@
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
+use aiken/interval
 use cardano/script_context.{ScriptContext}
 use cardano/transaction.{InlineDatum, OutputReference, Transaction}
+use symbiotic/invariants.{is_liquidatable}
 
 pub type PositionDatum {
   owner: VerificationKeyHash,
@@ -17,9 +19,10 @@ pub type PositionRedeemer {
   Increase(Int, Int)
   Reduce(Int)
   Close
+  Liquidate(Int, Int, Int)
 }
 
-validator perpetual {
+validator perpetual(oracle_authority: VerificationKeyHash) {
   spend(
     optional_datum: Option<PositionDatum>,
     redeemer: PositionRedeemer,
@@ -31,6 +34,7 @@ validator perpetual {
       list.find(self.inputs, fn(input) { input.output_reference == own_ref })
 
     let signed_by_owner = list.has(self.extra_signatories, datum.owner)
+    let signed_by_oracle = list.has(self.extra_signatories, oracle_authority)
     let valid_base =
       and {
         datum.side == 1 || datum.side == -1,
@@ -98,6 +102,25 @@ validator perpetual {
             },
           )
         signed_by_owner && valid_base && next_output.address == own_input.output.address
+      }
+      Liquidate(mark_price, maintenance_bps, attested_at_ms) -> {
+        expect mark_price > 0
+        expect maintenance_bps > 0
+        expect maintenance_bps <= 5_000
+        expect attested_at_ms > 0
+        and {
+          valid_base,
+          signed_by_oracle,
+          self.validity_range |> interval.contains(attested_at_ms),
+          is_liquidatable(
+            datum.side,
+            datum.size_usd,
+            datum.collateral_usd,
+            datum.entry_price,
+            mark_price,
+            maintenance_bps,
+          ),
+        }
       }
     }
   }

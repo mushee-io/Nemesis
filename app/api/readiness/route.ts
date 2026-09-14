@@ -33,13 +33,20 @@ export async function GET() {
         executionLeaseControlsPassed: flag(process.env.SYMBIOTIC_EXECUTION_LEASE_CONTROLS_PASSED),
         exposureControlsPassed: flag(process.env.SYMBIOTIC_EXPOSURE_CONTROLS_PASSED),
         canaryRollbackConfigured: flag(process.env.SYMBIOTIC_CANARY_ROLLBACK_CONFIGURED),
+        canaryRollbackDrillPassed: flag(process.env.SYMBIOTIC_CANARY_ROLLBACK_DRILL_PASSED),
+        solvencyConservationPassed: flag(process.env.SYMBIOTIC_SOLVENCY_CONSERVATION_PASSED),
+        fundingIntegrityPassed: flag(process.env.SYMBIOTIC_FUNDING_INTEGRITY_PASSED),
+        optionsSettlementConservationPassed: flag(process.env.SYMBIOTIC_OPTIONS_SETTLEMENT_CONSERVATION_PASSED),
+        notionalAuctionFairnessPassed: flag(process.env.SYMBIOTIC_NOTIONAL_AUCTION_FAIRNESS_PASSED),
+        chaosRecoveryPassed: flag(process.env.SYMBIOTIC_CHAOS_RECOVERY_PASSED),
+        releaseCertificateVerified: flag(process.env.SYMBIOTIC_RELEASE_CERTIFICATE_VERIFIED),
         dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
         securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
         emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
       }
     });
-    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v4", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
+    return NextResponse.json({ product: "Symbiotic", gate: "economic-security-release-v5", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
   } catch (error) {
-    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v4", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
+    return NextResponse.json({ product: "Symbiotic", gate: "economic-security-release-v5", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
   }
 }

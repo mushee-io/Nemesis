@@ -19,10 +19,13 @@ pub type PositionRedeemer {
   Increase(Int, Int)
   Reduce(Int)
   Close
-  Liquidate(Int, Int, Int)
+  Liquidate(Int, Int)
 }
 
-validator perpetual(oracle_authority: VerificationKeyHash) {
+validator perpetual(
+  oracle_authority: VerificationKeyHash,
+  maintenance_bps: Int,
+) {
   spend(
     optional_datum: Option<PositionDatum>,
     redeemer: PositionRedeemer,
@@ -35,12 +38,15 @@ validator perpetual(oracle_authority: VerificationKeyHash) {
 
     let signed_by_owner = list.has(self.extra_signatories, datum.owner)
     let signed_by_oracle = list.has(self.extra_signatories, oracle_authority)
+    let valid_risk_parameter = maintenance_bps > 0 && maintenance_bps <= 5_000
     let valid_base =
       and {
         datum.side == 1 || datum.side == -1,
         datum.size_usd > 0,
         datum.collateral_usd > 0,
         datum.entry_price > 0,
+        datum.nonce >= 0,
+        valid_risk_parameter,
       }
 
     when redeemer is {
@@ -103,10 +109,8 @@ validator perpetual(oracle_authority: VerificationKeyHash) {
           )
         signed_by_owner && valid_base && next_output.address == own_input.output.address
       }
-      Liquidate(mark_price, maintenance_bps, attested_at_ms) -> {
+      Liquidate(mark_price, attested_at_ms) -> {
         expect mark_price > 0
-        expect maintenance_bps > 0
-        expect maintenance_bps <= 5_000
         expect attested_at_ms > 0
         and {
           valid_base,

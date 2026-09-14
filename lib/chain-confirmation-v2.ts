@@ -5,6 +5,11 @@ export type ChainUtxoRef = {
   outputIndex: number;
 };
 
+export type ChainReferenceScript = {
+  ref: ChainUtxoRef;
+  scriptHash: string;
+};
+
 export type CardanoConfirmationProof = {
   network: CardanoNetwork;
   txHash: string;
@@ -18,6 +23,7 @@ export type CardanoConfirmationProof = {
   inputRefs: ChainUtxoRef[];
   outputRefs: ChainUtxoRef[];
   referenceInputRefs: ChainUtxoRef[];
+  referenceScripts: ChainReferenceScript[];
 };
 
 export type ConfirmationPolicy = {
@@ -29,6 +35,10 @@ export type ConfirmationPolicy = {
 
 function hash64(value: string, label: string) {
   if (!/^[0-9a-f]{64}$/i.test(value)) throw new Error(`${label} must be a 32-byte hex digest`);
+}
+
+function hash56(value: string, label: string) {
+  if (!/^[0-9a-f]{56}$/i.test(value)) throw new Error(`${label} must be a 28-byte script hash`);
 }
 
 export function canonicalUtxoRef(ref: ChainUtxoRef) {
@@ -86,6 +96,16 @@ export function validateCardanoConfirmation(
     throw new Error("A UTxO cannot be both consumed and read as a reference input in the same proof");
   }
 
+  const referenceScripts = proof.referenceScripts.map((entry) => {
+    const ref = canonicalUtxoRef(entry.ref);
+    hash56(entry.scriptHash, "Reference script hash");
+    if (!outputRefs.includes(ref)) throw new Error("Reference script metadata must point to an output created by the confirmed transaction");
+    return { ref, scriptHash: entry.scriptHash.toLowerCase() };
+  });
+  if (new Set(referenceScripts.map((entry) => entry.ref)).size !== referenceScripts.length) {
+    throw new Error("Confirmation contains duplicate reference-script metadata");
+  }
+
   return {
     verified: true,
     txHash: proof.txHash.toLowerCase(),
@@ -97,6 +117,7 @@ export function validateCardanoConfirmation(
     inputRefs,
     outputRefs,
     referenceInputRefs,
+    referenceScripts,
     observedAt: new Date(observedAt).toISOString()
   };
 }
@@ -108,5 +129,20 @@ export function assertReferenceScriptUsed(input: {
   const expected = canonicalUtxoRef(input.expectedReference);
   const references = new Set(input.confirmation.referenceInputRefs.map(canonicalUtxoRef));
   if (!references.has(expected)) throw new Error("Confirmed transaction did not read the expected reference script UTxO");
+  return true;
+}
+
+export function assertReferenceScriptDeployed(input: {
+  confirmation: CardanoConfirmationProof;
+  expectedReference: ChainUtxoRef;
+  expectedScriptHash: string;
+}) {
+  const expected = canonicalUtxoRef(input.expectedReference);
+  hash56(input.expectedScriptHash, "Expected reference script hash");
+  const match = input.confirmation.referenceScripts.find((entry) => canonicalUtxoRef(entry.ref) === expected);
+  if (!match) throw new Error("Confirmed deployment output is missing reference-script metadata");
+  if (match.scriptHash.toLowerCase() !== input.expectedScriptHash.toLowerCase()) {
+    throw new Error("Confirmed reference-script hash does not match the applied validator hash");
+  }
   return true;
 }

@@ -8,26 +8,28 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 
 The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano evidence.
 
-## Current protocol depth — v0.11.0
+## Current protocol depth — v0.12.0
 
-Milestones 50–55 introduced parameterized validator deployment, confirmed reference scripts, live funding/options/Notional evidence and a short-lived Preprod attestation.
+Milestones 50–60 built the five-validator deployment/evidence layer, stable-finality model, Protocol Registry, canonical state roots, cross-product reconciliation and the V7 Preprod release verifier.
 
-Milestones **55–60** add the protocol-wide release control plane:
+Milestones **60–66** add the critical control plane around that protocol state:
 
-- chained deployment epochs with release-attestation anti-replay
-- a fifth Aiken/Plutus V3 **Protocol Registry** validator
-- canonical protocol state roots across Collateral, Perps, Options and Notional
-- stable-vs-confirmed Cardano finality with explicit rollback/orphan handling
-- oracle/funding rounds anchored to the Registry state root
-- cross-product account and protocol accounting reconciliation
-- ordered `BUILDING -> DEPLOYED -> CANARY -> SOAK -> CERTIFIED -> PREPROD_LIVE` release progression
-- an object-level V7 verifier that recomputes and cross-checks the full evidence graph
+- Registry commitments for independent **state, risk, operator, settlement and migration roots**
+- atomic five-validator/state migration evidence
+- bounded risk-parameter governance with guardian tightening and governor-timelocked relaxations
+- stable-finality withdrawal settlement and rolling outflow containment
+- bonded competitive liquidation execution with insurance-floor preservation
+- operator-set epochs, credential retirement, role separation and overlap rules
+- a non-executable production review certificate that recomputes every control root and returns `activationAllowed: false`
 
-The detailed design, threat model and invariants are documented in `docs/milestones-55-60.md`.
+Detailed threat models and invariants are in:
+
+- `docs/milestones-55-60.md`
+- `docs/milestones-60-66-critical.md`
 
 ## Validator set
 
-Symbiotic now requires five compiled and parameterized spend validators:
+Symbiotic requires five compiled and parameterized Plutus V3 spend validators:
 
 1. `collateral.collateral.spend`
 2. `perpetual.perpetual.spend`
@@ -35,66 +37,113 @@ Symbiotic now requires five compiled and parameterized spend validators:
 4. `notional.notional.spend`
 5. `registry.registry.spend`
 
-The Registry is parameterized with governor and guardian verification-key hashes and anchors:
+The Registry now anchors:
 
-- active deployment epoch
+- deployment epoch
 - parameter-schema digest
 - parameterized-deployment digest
-- protocol state root
+- canonical protocol state root
+- risk-policy root
+- operator-set root
+- settlement-safety root
+- migration root
 - oracle round
 - funding round
 - pause state
 - monotonic nonce
 
-Because Aiken parameters become part of the applied validator, changing a parameter creates a new script hash/address and therefore a new deployment generation.
+`Advance` is an epoch-changing transition. `Checkpoint` updates in-epoch state/control roots and rounds. `Pause` and `Resume` preserve all committed roots, preventing an emergency-state transition from smuggling a policy or deployment change.
 
-## Cardano finality model
+Because Aiken parameters become part of the applied validator, parameter or Registry-code changes create new script hashes/addresses and therefore a new deployment generation.
 
-Release evidence distinguishes:
+## Critical migration model
 
-- `OBSERVED`
-- `CONFIRMED`
-- `STABLE`
-- `ORPHANED`
-
-Operational confirmation is not enough for Milestone 60. Critical activation transactions must exceed the configured slot-based stability window. A regression from accepted finality requires an explicit rollback record and orphaned transactions are invalidated.
-
-## Protocol-wide reconciliation
-
-The canonical checkpoint commits unique state UTxOs plus the accounting snapshot for:
-
-- custody
-- insurance
-- user collateral/equity
-- Perp margin and PnL liabilities
-- Options collateral and payout liabilities
-- Notional escrow
-- pending withdrawals
-- bad debt
-
-Duplicate state IDs/UTxOs and account allocations above owned collateral fail closed.
-
-## Release lifecycle
-
-Normal promotion is strictly ordered:
+Migration evidence covers both sides of all five validator handoffs:
 
 ```text
-BUILDING
-  -> DEPLOYED
-  -> CANARY
-  -> SOAK
-  -> CERTIFIED
-  -> PREPROD_LIVE
+previous script hash + previous reference UTxO
+                    ↓
+             migration plan
+                    ↓
+next script hash + next reference UTxO
 ```
 
-Normal transitions cannot skip stages or change deployment epoch. Emergency paths are explicit `PAUSED` / `ROLLED_BACK` states.
+Upgrades also map live state UTxOs one-to-one, require unique source/target references and advance every state nonce exactly once. Genesis migration requires empty live product state and a zero predecessor Registry root.
+
+## Risk governance
+
+Risk configuration is a deterministic root covering leverage, initial/maintenance margin, OI/position caps, funding/oracle bounds, liquidation penalty, withdrawal controls and insurance floor.
+
+- unambiguously tighter changes may use guardian quorum
+- relaxed or mixed changes require governor quorum + timelock
+- hard safety caps cannot be bypassed by either path
+- liquidation-penalty changes are treated as high-sensitivity mixed changes
+
+## Withdrawal and liquidation safety
+
+Withdrawals require:
+
+- `STABLE` request finality
+- maturity delay
+- healthy post-withdrawal account state
+- per-ticket limits
+- rolling protocol outflow headroom
+- protocol not paused
+
+Liquidations require:
+
+- genuinely unsafe position state
+- bounded mark/index divergence
+- partial-close limits
+- fresh competitive keeper quotes
+- keeper bonds
+- fee/price-impact limits
+- insurance-floor preservation
+- explicit ADL permission for residual bad debt
+
+## Operator-set governance
+
+Operator-set roots bind credential digests, roles, activation windows, thresholds and operator epoch.
+
+Critical role separation includes:
+
+- Governor ≠ Guardian
+- Builder credentials cannot also govern or act as guardians
+- quorum thresholds must be satisfiable
+- oracle/keeper/solver populations must meet diversity policy
+- normal rotations require overlap and delayed activation
+- emergency rotations require guardian quorum and explicit credential retirement
+
+## Production review boundary
+
+Milestone 66 produces a cryptographically bound **production review certificate**. It recomputes:
+
+- source Preprod release digest
+- Registry critical-state digest
+- canonical state root
+- migration digest
+- risk root
+- operator root
+- settlement root
+- chaos/recovery evidence
+- reviewer quorum and validity window
+
+A mismatch in any domain fails closed.
+
+The certificate can return `reviewReady: true`, but always returns:
+
+```text
+activationAllowed: false
+```
+
+That is intentional. CI, GitHub, environment variables and this repository are not treated as authority to activate live funds.
 
 ## Contract build
 
 CI pins Aiken `v1.1.22` and runs:
 
 ```bash
-aiken check --max-success=2000
+aiken check --max-success=2500
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -120,35 +169,11 @@ CI additionally records:
 - CycloneDX SBOM
 - package metadata fingerprints
 - deep-release source fingerprints
+- critical-control source fingerprints
 - validator / Registry contract fingerprints
-
-## Core environment
-
-```bash
-SYMBIOTIC_CARDANO_NETWORK=preprod
-SYMBIOTIC_PROVIDER_ENDPOINT=https://...
-SYMBIOTIC_INDEXER_ENDPOINT=https://...
-SYMBIOTIC_TX_BUILDER_ENDPOINT=https://...
-SYMBIOTIC_ORACLE_SOURCES=oracle-a,oracle-b
-
-SYMBIOTIC_COLLATERAL_VALIDATOR_ADDRESS=addr_test1...
-SYMBIOTIC_COLLATERAL_VALIDATOR_HASH=...
-SYMBIOTIC_PERPETUAL_VALIDATOR_ADDRESS=addr_test1...
-SYMBIOTIC_PERPETUAL_VALIDATOR_HASH=...
-SYMBIOTIC_OPTIONS_VALIDATOR_ADDRESS=addr_test1...
-SYMBIOTIC_OPTIONS_VALIDATOR_HASH=...
-SYMBIOTIC_NOTIONAL_VALIDATOR_ADDRESS=addr_test1...
-SYMBIOTIC_NOTIONAL_VALIDATOR_HASH=...
-SYMBIOTIC_REGISTRY_VALIDATOR_ADDRESS=addr_test1...
-SYMBIOTIC_REGISTRY_VALIDATOR_HASH=...
-```
-
-Milestones 55–60 add runtime evidence indicators for deployment-epoch chaining, Registry checkpointing, stable finality, oracle/funding anchoring, cross-product reconciliation, release lifecycle verification and the final deep Preprod bundle. These flags are presentation/release switches only; the object-level verifier remains authoritative.
 
 ## Current deployment boundary
 
-The repository contains the **Perpetual DEX + Options + Notional Market** contracts and the V7 five-validator release-control architecture.
+The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator V7 Preprod control architecture and the v0.12.0 critical production-review layer.
 
-It does **not** claim that this newest validator generation is already live on Cardano Preprod. The Registry is a new validator and the required deployment fingerprints have changed. `/status` must remain fail-closed until the five validators are parameterized and deployed, the Registry checkpoint exists, critical transactions are stable, accounting reconciles, oracle/funding evidence is anchored, and the release lifecycle reaches `PREPROD_LIVE` with matching object-level evidence.
-
-Mainnet remains a separate explicitly enabled release path.
+It does **not** claim that this newest Registry generation is deployed, that Preprod evidence has been refreshed for the new fingerprints, or that any live network has been activated. Any deployment or launch decision still requires real on-chain evidence and an external manual authorization process.

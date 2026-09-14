@@ -121,20 +121,28 @@ export function isIntentExpired(intent: ProtocolIntent<unknown>, nowMs = Date.no
   return new Date(intent.expiresAt).getTime() <= nowMs;
 }
 
-export type NemesisCapability = {
+export type SymbioticCapability = {
   id: string;
-  status: "IMPLEMENTED" | "FOUNDATION" | "PENDING_ONCHAIN";
+  status: "IMPLEMENTED" | "FOUNDATION" | "CONFIG_REQUIRED" | "PENDING_ONCHAIN";
   boundary: string;
 };
 
-export const NEMESIS_CAPABILITIES: NemesisCapability[] = [
-  { id: "perpetual-risk-engine", status: "IMPLEMENTED", boundary: "Deterministic TypeScript risk calculations; not authoritative settlement." },
-  { id: "advanced-orders", status: "IMPLEMENTED", boundary: "Validation and trigger rules; no Cardano transaction builder yet." },
-  { id: "options-settlement", status: "IMPLEMENTED", boundary: "Deterministic collateral and expiry settlement rules; validator deployment pending." },
-  { id: "notional-pretrade", status: "FOUNDATION", boundary: "Commit/reveal and replay controls; encrypted matcher and private settlement pending." },
-  { id: "oracle-guard", status: "IMPLEMENTED", boundary: "Freshness, confidence and deviation checks; live oracle adapter pending." },
-  { id: "cardano-settlement", status: "PENDING_ONCHAIN", boundary: "Must remain fail-closed until validators and transaction construction are connected." }
+export const SYMBIOTIC_CAPABILITIES: SymbioticCapability[] = [
+  { id: "perpetual-risk-engine", status: "IMPLEMENTED", boundary: "Deterministic TypeScript risk calculations; authoritative settlement still belongs on-chain." },
+  { id: "advanced-orders", status: "IMPLEMENTED", boundary: "Validation and trigger rules are implemented." },
+  { id: "options-settlement", status: "IMPLEMENTED", boundary: "Expiry-only settlement authorization uses fresh oracle quorum pricing and one-time settlement IDs." },
+  { id: "notional-pretrade", status: "FOUNDATION", boundary: "Commit/reveal and replay controls exist; encrypted matcher transport and private L1 settlement remain separate work." },
+  { id: "oracle-quorum", status: "IMPLEMENTED", boundary: "Multiple independent sources are filtered for freshness, confidence and divergence before settlement use." },
+  { id: "cip30-execution", status: "IMPLEMENTED", boundary: "Wallet signs backend-prepared CBOR, a trusted assembler merges witnesses, then the wallet submits." },
+  { id: "chain-indexer", status: "IMPLEMENTED", boundary: "Deterministic transaction/event reduction and confirmation interfaces exist; a live provider endpoint must be configured." },
+  { id: "liquidation-keepers", status: "IMPLEMENTED", boundary: "Keeper jobs require an unsafe position, fresh oracle quorum, bounded partial liquidation and replay-safe job IDs." },
+  { id: "validator-transition-mirror", status: "FOUNDATION", boundary: "Off-chain transition invariants mirror the intended Cardano validator rules; compiled/deployed Aiken validators are still required." },
+  { id: "cardano-testnet-readiness", status: "CONFIG_REQUIRED", boundary: "Readiness stays false until provider, indexer, builder, oracle quorum and required validator deployments are configured." },
+  { id: "cardano-validator-deployment", status: "PENDING_ONCHAIN", boundary: "Collateral, perpetual and options validators must be compiled, audited and deployed before live value can settle." }
 ];
+
+/** @deprecated Use SYMBIOTIC_CAPABILITIES. */
+export const NEMESIS_CAPABILITIES = SYMBIOTIC_CAPABILITIES;
 
 export function normalizeSide(side: PerpSide) {
   return side === "LONG" ? 1 : -1;

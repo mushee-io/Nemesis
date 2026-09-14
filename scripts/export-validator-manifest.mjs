@@ -9,10 +9,11 @@ const titles = [
   "collateral.collateral.spend",
   "perpetual.perpetual.spend",
   "options.options.spend",
-  "notional.notional.spend"
+  "notional.notional.spend",
+  "registry.registry.spend"
 ];
 const selected = (blueprint.validators ?? []).filter((validator) => titles.includes(validator.title));
-if (selected.length !== 4) throw new Error(`Expected 4 Symbiotic spend validators, found ${selected.length}`);
+if (selected.length !== titles.length) throw new Error(`Expected ${titles.length} Symbiotic spend validators, found ${selected.length}`);
 
 const validators = selected.map((validator) => {
   if (typeof validator.compiledCode !== "string") throw new Error(`Missing compiled code for ${validator.title}`);

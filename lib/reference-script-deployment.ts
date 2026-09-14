@@ -7,7 +7,10 @@ import {
   type CardanoConfirmationProof,
   type ConfirmationPolicy
 } from "./chain-confirmation-v2";
-import type { SymbioticValidatorTitle } from "./parameterized-deployment";
+import {
+  REQUIRED_VALIDATOR_TITLES,
+  type SymbioticValidatorTitle
+} from "./parameterized-deployment";
 
 export type ReferenceScriptDeploymentIntent = {
   title: SymbioticValidatorTitle;
@@ -128,5 +131,51 @@ export function validateReferenceScriptDeploymentReceipt(input: {
     appliedScriptHash: receipt.appliedScriptHash.toLowerCase(),
     referenceScriptRef: reference,
     confirmation
+  };
+}
+
+export function validateReferenceScriptDeploymentBundle(input: {
+  receipts: ReferenceScriptDeploymentReceipt[];
+  expected: Array<{ title: SymbioticValidatorTitle; parameterDigest: string; appliedScriptHash: string }>;
+  network: CardanoNetwork;
+  policy: Omit<ConfirmationPolicy, "expectedNetwork">;
+  nowMs?: number;
+}) {
+  if (input.receipts.length !== REQUIRED_VALIDATOR_TITLES.length) {
+    throw new Error(`Expected ${REQUIRED_VALIDATOR_TITLES.length} reference-script deployment receipts`);
+  }
+  const validated = REQUIRED_VALIDATOR_TITLES.map((title) => {
+    const receipt = input.receipts.find((candidate) => candidate.title === title);
+    const expected = input.expected.find((candidate) => candidate.title === title);
+    if (!receipt || !expected) throw new Error(`Missing reference-script deployment receipt for ${title}`);
+    if (receipt.network !== input.network) throw new Error(`${title} reference-script network mismatch`);
+    return validateReferenceScriptDeploymentReceipt({
+      receipt,
+      policy: input.policy,
+      expectedParameterDigest: expected.parameterDigest,
+      expectedScriptHash: expected.appliedScriptHash,
+      nowMs: input.nowMs
+    });
+  });
+
+  const refs = validated.map((receipt) => receipt.referenceScriptRef);
+  if (new Set(refs).size !== refs.length) throw new Error("Reference-script bundle contains duplicate UTxOs");
+  const txHashes = validated.map((receipt) => receipt.confirmation.txHash);
+  const digest = createHash("sha256").update(validated.map((receipt) => [
+    receipt.title,
+    receipt.parameterDigest,
+    receipt.appliedScriptHash,
+    receipt.referenceScriptRef,
+    receipt.confirmation.blockHash,
+    receipt.confirmation.slot
+  ].join(":" )).join("|")).digest("hex");
+
+  return {
+    verified: true,
+    network: input.network,
+    digest,
+    references: refs,
+    deploymentTransactions: [...new Set(txHashes)],
+    receipts: validated
   };
 }

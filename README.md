@@ -8,86 +8,85 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 
 The repository is intentionally fail-closed. A preview, signed witness or configured address is never treated as final settlement without compiled validator evidence and confirmed Cardano transactions.
 
-## Milestones 21–25
+## Milestones 26–30
 
-The previous phase introduced real Aiken/Plutus V3 collateral, perpetual and options validators, CIP-0057 blueprint verification, compiled-code fingerprints, deployment binding and confirmed Cardano lifecycle evidence.
+The previous phase added Aiken fuzz/property tests, real UTxO collateral backing, oracle-attested perps/options settlement, the compiled Notional validator and a four-validator Preprod evidence gate requiring confirmed deposit, perp open/close/liquidation, option settlement and Notional settlement receipts.
 
-## Milestones 26–30 — Derivatives hardening and Preprod gate
+## Hardened Milestones 30–35
 
-### Milestone 26 — Validator invariant/property testing
+### Milestone 30 — Preprod evidence v2
 
-- `aiken-lang/fuzz` added and pinned
-- property checks for collateral state transitions
-- equity-at-entry invariant checks
-- long/short liquidation invariant tests
-- CI increases property exploration with `aiken check --max-success=300`
+- Preprod evidence is time-bounded
+- stale lifecycle evidence is rejected
+- future-dated evidence is rejected
+- all four deployed validators remain mandatory
+- six confirmed lifecycle actions remain mandatory
 
-### Milestone 27 — Real UTxO collateral enforcement
+### Milestone 31 — Release provenance
 
-The collateral validator is now parameterized by the collateral token policy ID + asset name.
+- release commit SHA is bound to the release candidate
+- production web build receives a deterministic SHA-256 digest
+- CIP-0057 blueprint digest remains pinned
+- validator-manifest digest is pinned
+- runtime/config digest is required
+- provenance timestamps are freshness checked
+- reused digest values across distinct artifacts fail closed
 
-- datum balance must equal the actual token quantity in the consumed UTxO
-- deposits must increase both datum balance and real UTxO token quantity by the same amount
-- withdrawals must decrease both by the same amount
-- nonce and owner invariants remain enforced
-- emergency exit requires the consumed state to be fully backed
+### Milestone 32 — Operator quorum policy
 
-Options collateral additions use the same real-value binding model.
+- explicit ORACLE / KEEPER / SOLVER / GOVERNOR roles
+- configurable signer membership and thresholds
+- duplicate signers rejected
+- unknown signers rejected
+- quorum enforcement before privileged operation evidence is accepted
+- oracle and governor control sets cannot be identical
 
-### Milestone 28 — Oracle-attested perps + options settlement
+### Milestone 33 — Contract-state hardening
 
 **Perpetuals**
 
-- perpetual validator is parameterized by an oracle authority
-- liquidation requires an oracle-authority signature
-- mark price is included in the liquidation redeemer
-- health is recomputed on-chain from side, size, collateral, entry and mark price
-- maintenance margin is checked on-chain
-- the oracle attestation timestamp must sit inside the Cardano transaction validity interval
+- maintenance margin is now a validator parameter instead of caller-controlled redeemer data
+- liquidation callers can no longer weaken the maintenance threshold
+- oracle-authorized mark price and validity-range attestation remain mandatory
 
 **Options**
 
-- settlement authority remains explicit and parameterized
-- settlement timestamp is no longer trusted merely because a user supplied `now_ms`
-- the attestation timestamp must be inside Cardano's phase-1-validated transaction validity range
-- settlement occurs only at/after expiry
-- active state transitions to a continuing settled state before owner close
-- collateral datum remains bound to actual collateral-token quantity
+- settled option state persists the authoritative settlement price
+- active state requires settlement price = 0
+- settled state requires a positive settlement price
+- settlement transition binds the stored price to the authority-approved price
 
-### Milestone 29 — Notional Market on-chain validator
+**Notional Market**
 
-`validators/notional.ak` makes the third product part of the compiled protocol.
+- solver fill must create a continuing settled receipt UTxO
+- receipt preserves owner, commitment and expiry
+- nonce must increment
+- settled flag becomes one-way
+- owner may close the settled receipt separately
 
-- owner creates a UTxO containing only the commitment, expiry and nonce—not public side/size/limit-price fields
-- fill requires the authorized solver
-- solver reveals the committed preimage at settlement
-- validator checks `sha2_256(reveal_preimage) == commitment`
-- settlement price must be positive
-- fill attestation must be inside the transaction validity interval and before intent expiry
-- owner can cancel the still-unsettled commitment
-- consuming the UTxO gives on-chain replay resistance
+### Milestone 34 — Incident and recovery controls
 
-The TypeScript Notional implementation exports the exact UTF-8 reveal preimage as hex so its SHA-256 commitment matches the Aiken validator model.
+- incident receipts bind a reason hash and unique incident ID
+- emergency transitions can tighten protocol state immediately with guardian quorum
+- recovery to a less restrictive mode requires a configured delay
+- recovery requires governor quorum
+- duplicate/empty approval sets fail closed
 
-### Milestone 30 — Preprod evidence gate
+### Milestone 35 — Preprod soak and release-candidate gate
 
-Runtime/build evidence now treats Symbiotic as a four-validator system:
+- minimum healthy sample count
+- minimum soak duration
+- monitoring-gap limit
+- provider lag ceiling
+- indexer lag ceiling
+- minimum oracle source count
+- maximum transaction failure rate
+- any degraded sample fails the release candidate
+- `/api/readiness` and `/status` now require provenance, operator-policy, incident-recovery and soak evidence
 
-- collateral
-- perpetual
-- options
-- Notional
+## Dependency hardening
 
-A Preprod release is not considered ready until confirmed evidence exists for all six core actions:
-
-1. `DEPOSIT_COLLATERAL`
-2. `OPEN_PERP`
-3. `CLOSE_PERP`
-4. `LIQUIDATE`
-5. `SETTLE_OPTION`
-6. `SETTLE_NOTIONAL`
-
-`lib/preprod-readiness.ts` binds the compiled validator manifest, deployed validator fingerprints/addresses and confirmed transaction receipts into one fail-closed Preprod evidence result.
+The web application is pinned to Next.js `16.3.5`. CI now blocks HIGH or CRITICAL dependency findings instead of only CRITICAL findings.
 
 ## Cardano execution architecture
 
@@ -97,10 +96,10 @@ The hardened transaction firewall runs before wallet signing. On-chain Aiken val
 
 ## Contract build
 
-CI installs the pinned Aiken release directly, then runs:
+CI installs pinned Aiken `v1.1.22`, then runs:
 
 ```bash
-aiken check --max-success=300
+aiken check --max-success=500
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -128,16 +127,28 @@ SYMBIOTIC_NOTIONAL_VALIDATOR_ADDRESS=addr_test1...
 SYMBIOTIC_NOTIONAL_VALIDATOR_HASH=...
 ```
 
+Additional hardened release evidence:
+
+```bash
+SYMBIOTIC_RELEASE_PROVENANCE_VERIFIED=true
+SYMBIOTIC_OPERATOR_POLICY_VERIFIED=true
+SYMBIOTIC_INCIDENT_RECOVERY_CONFIGURED=true
+SYMBIOTIC_PREPROD_SOAK_PASSED=true
+```
+
+These flags must reflect real reviewed evidence. They are not substitutes for running the checks.
+
 ## Quality gates
 
 ```bash
 npm install
-npm audit --audit-level=critical
+npm audit --audit-level=high
 npm run typecheck
 npm test
 npm run build
+node scripts/hash-directory.mjs .next artifacts/web-build-digest.json
 
-aiken check --max-success=300
+aiken check --max-success=500
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -145,8 +156,8 @@ npm run contracts:manifest
 
 ## Current deployment boundary
 
-The repository now contains the full **Perpetual DEX + Options + Notional Market** contract foundation and Preprod evidence gate. It does **not** claim that the newly parameterized validators are already deployed to Cardano Preprod.
+The repository contains the hardened **Perpetual DEX + Options + Notional Market** contract and release-control foundation. It does **not** claim that the latest parameterized validators are already deployed to Cardano Preprod.
 
-Before `/status` may legitimately turn green, the newly compiled parameterized scripts must be deployed with reviewed collateral/oracle/solver parameters, their addresses and script hashes must be bound to the compiled fingerprints, and all six lifecycle transactions above must be executed and confirmed on Preprod.
+Before `/status` may legitimately turn green, the compiled scripts must be deployed with reviewed collateral/oracle/solver/risk parameters, deployment fingerprints must match the exact compiled artifacts, all six lifecycle actions must be confirmed on Preprod, release provenance must be bound to the candidate, operator and recovery policies must be reviewed, and the sustained Preprod soak must pass.
 
 Mainnet remains explicitly disabled until a separate reviewed release.

@@ -17,28 +17,23 @@ import {
   requiredWriterCollateral,
   type OptionKind
 } from "@/lib/options";
-import {
-  createIntentCommitment,
-  randomNonce,
-  randomSalt,
-  type HiddenIntent
-} from "@/lib/notional";
+import { createIntentCommitment, randomNonce, randomSalt, type HiddenIntent } from "@/lib/notional";
 import { evaluatePortfolioRisk } from "@/lib/risk";
 
 type View = "PERPETUALS" | "OPTIONS" | "NOTIONAL";
-const money = (v: number) => Number.isFinite(v) ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—";
+const money = (value: number) => Number.isFinite(value) ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—";
 
 export default function Home() {
   const [view, setView] = useState<View>("PERPETUALS");
   const [side, setSide] = useState<PerpSide>("LONG");
   const [orderType, setOrderType] = useState<PerpOrderType>("MARKET");
-  const [entry, setEntry] = useState(60000);
-  const [mark, setMark] = useState(60000);
-  const [indexPrice, setIndexPrice] = useState(59950);
-  const [size, setSize] = useState(1000);
+  const [entry, setEntry] = useState(60_000);
+  const [mark, setMark] = useState(60_000);
+  const [indexPrice, setIndexPrice] = useState(59_950);
+  const [size, setSize] = useState(1_000);
   const [leverage, setLeverage] = useState(5);
-  const [triggerPrice, setTriggerPrice] = useState(58000);
-  const [accountCollateral, setAccountCollateral] = useState(3000);
+  const [triggerPrice, setTriggerPrice] = useState(58_000);
+  const [accountCollateral, setAccountCollateral] = useState(3_000);
 
   const perp = useMemo(() => {
     try { return calculatePerp({ side, entryPrice: entry, markPrice: mark, sizeUsd: size, leverage }); }
@@ -83,25 +78,26 @@ export default function Home() {
         collateralUsd: accountCollateral,
         positions: [{ id: "preview", market: "BTC-USD", side, entryPrice: entry, markPrice: mark, sizeUsd: size, leverage }]
       });
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }, [accountCollateral, side, entry, mark, size, leverage]);
 
   const [kind, setKind] = useState<OptionKind>("CALL");
-  const [spot, setSpot] = useState(60000);
-  const [strike, setStrike] = useState(65000);
+  const [spot, setSpot] = useState(60_000);
+  const [strike, setStrike] = useState(65_000);
   const [days, setDays] = useState(30);
   const [vol, setVol] = useState(0.65);
   const [contracts, setContracts] = useState(1);
+
   const option = useMemo(() => {
     try { return priceEuropeanOption({ kind, spot, strike, daysToExpiry: days, volatility: vol }); }
     catch { return null; }
   }, [kind, spot, strike, days, vol]);
+
   const writerCollateral = useMemo(() => {
     try { return requiredWriterCollateral({ kind, strike, contracts }); }
     catch { return null; }
   }, [kind, strike, contracts]);
+
   const breakEven = useMemo(() => {
     try { return option ? optionBreakEven(kind, strike, option.price) : 0; }
     catch { return 0; }
@@ -142,11 +138,12 @@ export default function Home() {
   return (
     <main className="shell">
       <header className="topbar">
-        <div className="brand"><span>N</span>NEMESIS</div>
+        <div className="brand"><span>S</span>SYMBIOTIC</div>
         <nav>
           {(["PERPETUALS", "OPTIONS", "NOTIONAL"] as View[]).map((item) => (
             <button key={item} className={view === item ? "nav-active" : ""} onClick={() => setView(item)}>{item === "NOTIONAL" ? "NOTIONAL MARKET" : item}</button>
           ))}
+          <a href="/status" style={{ color: "#818181", padding: "10px 12px", fontSize: 10, letterSpacing: ".1em", textDecoration: "none" }}>STATUS</a>
         </nav>
         <WalletButton />
       </header>
@@ -154,20 +151,15 @@ export default function Home() {
       {view === "PERPETUALS" ? (
         <section className="terminal">
           <div className="workspace">
-            <div className="market-header"><div><p>PERPETUAL / RISK ENGINE V2</p><h1>BTC-USD PERP</h1></div><div className="chips"><span>CARDANO</span><span>ISOLATED PREVIEW</span><span>{orderType}</span></div></div>
-            <div className="chart">
-              <p>ORACLE GUARD FOUNDATION / LIVE ADAPTER PENDING</p><strong>{money(mark)}</strong><small>Mark and index are local preview inputs, not executable quotes.</small>
-            </div>
+            <div className="market-header"><div><p>PERPETUAL / EXECUTION FOUNDATION V3</p><h1>BTC-USD PERP</h1></div><div className="chips"><span>CARDANO</span><span>PREPROD TARGET</span><span>{orderType}</span></div></div>
+            <div className="chart"><p>ORACLE QUORUM + CIP-30 EXECUTION LAYER IMPLEMENTED</p><strong>{money(mark)}</strong><small>Local preview values are never treated as authoritative chain state.</small></div>
             <div className="metrics">
               <div><span>NOTIONAL</span><b>{money(size)}</b></div>
               <div><span>INITIAL MARGIN</span><b>{perp ? money(perp.initialMargin) : "—"}</b></div>
               <div><span>LIQUIDATION</span><b>{perp ? money(perp.liquidationPrice) : "—"}</b></div>
               <div><span>8H FUNDING</span><b>{(fundingRate * 100).toFixed(4)}%</b></div>
             </div>
-            <div className="position-table">
-              <div className="row head"><span>SIDE</span><span>PNL</span><span>HEALTH</span><span>TAKER FEE</span><span>STATE</span></div>
-              <div className="row"><span>{side}</span><span>{perp ? money(perp.unrealizedPnl) : "—"}</span><span>{portfolio ? (Number.isFinite(portfolio.healthFactor) ? portfolio.healthFactor.toFixed(2) : "∞") : "—"}</span><span>{money(takerFee)}</span><span className="acid">{orderValidation}</span></div>
-            </div>
+            <div className="position-table"><div className="row head"><span>SIDE</span><span>PNL</span><span>HEALTH</span><span>TAKER FEE</span><span>STATE</span></div><div className="row"><span>{side}</span><span>{perp ? money(perp.unrealizedPnl) : "—"}</span><span>{portfolio ? (Number.isFinite(portfolio.healthFactor) ? portfolio.healthFactor.toFixed(2) : "∞") : "—"}</span><span>{money(takerFee)}</span><span className="acid">{orderValidation}</span></div></div>
           </div>
           <aside className="ticket">
             <p className="label">ADVANCED PERPETUAL TICKET</p>
@@ -181,8 +173,8 @@ export default function Home() {
             <label>ACCOUNT COLLATERAL<input type="number" min="0" value={accountCollateral} onChange={(e) => setAccountCollateral(Number(e.target.value))} /></label>
             <label>LEVERAGE <b>{leverage}×</b><input type="range" min="1" max="20" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} /></label>
             <div className="summary"><span>Funding cashflow<b>{money(fundingPayment)}</b></span><span>Portfolio equity<b>{portfolio ? money(portfolio.equityUsd) : "—"}</b></span><span>Available collateral<b>{portfolio ? money(portfolio.availableCollateralUsd) : "—"}</b></span><span>Liquidation buffer<b>{portfolio ? money(portfolio.liquidationBufferUsd) : "—"}</b></span></div>
-            <button className="disabled" disabled>CARDANO SETTLEMENT PENDING</button>
-            <p className="fine">Order validation, fees, funding and portfolio risk are live calculations. Transaction submission remains fail-closed until Cardano validators, oracle adapters and settlement builders are connected.</p>
+            <button className="disabled" disabled>VALIDATORS NOT DEPLOYED</button>
+            <p className="fine">CIP-30 signing, backend assembly, oracle quorum, indexer state and keeper authorization are implemented. Trading remains fail-closed until the required Cardano validators are deployed and readiness turns green.</p>
           </aside>
         </section>
       ) : null}
@@ -190,11 +182,9 @@ export default function Home() {
       {view === "OPTIONS" ? (
         <section className="terminal">
           <div className="workspace">
-            <div className="market-header"><div><p>OPTIONS / COLLATERALIZED EUROPEAN V1</p><h1>BTC OPTIONS</h1></div><div className="chips"><span>CALLS</span><span>PUTS</span><span>EXPIRY SETTLEMENT</span></div></div>
-            <div className="metrics">
-              <div><span>REFERENCE SPOT</span><b>{money(spot)}</b></div><div><span>STRIKE</span><b>{money(strike)}</b></div><div><span>BREAK EVEN</span><b>{money(breakEven)}</b></div><div><span>MODEL PREMIUM</span><b>{option ? money(option.price) : "—"}</b></div>
-            </div>
-            <div className="option-hero"><p>MODEL OUTPUT / NOT AN EXECUTABLE QUOTE</p><strong>{option ? money(option.price) : "—"}</strong><div className="greeks"><span>DELTA<b>{option?.delta.toFixed(4) ?? "—"}</b></span><span>GAMMA<b>{option?.gamma.toFixed(6) ?? "—"}</b></span><span>VEGA<b>{option?.vega.toFixed(4) ?? "—"}</b></span><span>THETA/D<b>{option?.theta.toFixed(4) ?? "—"}</b></span></div></div>
+            <div className="market-header"><div><p>OPTIONS / QUORUM-SETTLED EUROPEAN V1</p><h1>BTC OPTIONS</h1></div><div className="chips"><span>CALLS</span><span>PUTS</span><span>EXPIRY ONLY</span></div></div>
+            <div className="metrics"><div><span>REFERENCE SPOT</span><b>{money(spot)}</b></div><div><span>STRIKE</span><b>{money(strike)}</b></div><div><span>BREAK EVEN</span><b>{money(breakEven)}</b></div><div><span>MODEL PREMIUM</span><b>{option ? money(option.price) : "—"}</b></div></div>
+            <div className="option-hero"><p>MODEL OUTPUT / SETTLEMENT REQUIRES ORACLE QUORUM</p><strong>{option ? money(option.price) : "—"}</strong><div className="greeks"><span>DELTA<b>{option?.delta.toFixed(4) ?? "—"}</b></span><span>GAMMA<b>{option?.gamma.toFixed(6) ?? "—"}</b></span><span>VEGA<b>{option?.vega.toFixed(4) ?? "—"}</b></span><span>THETA/D<b>{option?.theta.toFixed(4) ?? "—"}</b></span></div></div>
           </div>
           <aside className="ticket">
             <p className="label">OPTION TICKET</p>
@@ -205,15 +195,14 @@ export default function Home() {
             <label>DAYS TO EXPIRY<input type="number" min="1" value={days} onChange={(e) => setDays(Number(e.target.value))} /></label>
             <label>VOLATILITY<input type="number" min="0.01" step="0.01" value={vol} onChange={(e) => setVol(Number(e.target.value))} /></label>
             <div className="summary"><span>Writer collateral asset<b>{writerCollateral?.asset ?? "—"}</b></span><span>Writer collateral amount<b>{writerCollateral ? writerCollateral.amount.toLocaleString() : "—"}</b></span><span>Buyer max loss<b>{option ? money(option.price * contracts) : "—"}</b></span></div>
-            <button className="disabled" disabled>OPTION SETTLEMENT VALIDATOR PENDING</button>
-            <p className="fine">Nemesis now has deterministic writer-collateral and expiry-settlement rules. The Cardano validator deployment remains intentionally disabled.</p>
+            <button className="disabled" disabled>OPTIONS VALIDATOR NOT DEPLOYED</button>
           </aside>
         </section>
       ) : null}
 
       {view === "NOTIONAL" ? (
         <section className="notional">
-          <div className="notional-copy"><p className="label">NOTIONAL MARKET / PRIVATE PRE-TRADE INTENT</p><h1>HIDE THE INTENT.<br /><span>BOUND THE EXECUTION.</span></h1><p>Notional now commits market, direction, size, limit, expiry, chain, slippage and a one-time nonce. Reveal verification and replay controls are implemented at the library layer. Encrypted matching and private Cardano settlement are still separate protocol work.</p><div className="steps"><span>01 / Compose locally</span><span>02 / Salt + commit</span><span>03 / Match private intent</span><span>04 / Consume nonce + settle bounds</span></div></div>
+          <div className="notional-copy"><p className="label">NOTIONAL MARKET / PRIVATE PRE-TRADE INTENT</p><h1>HIDE THE INTENT.<br /><span>BOUND THE EXECUTION.</span></h1><p>Notional commits market, direction, size, limit, expiry, chain, slippage and a one-time nonce. Reveal verification and replay controls are implemented; normal Cardano L1 settlement remains public.</p><div className="steps"><span>01 / Compose locally</span><span>02 / Salt + commit</span><span>03 / Match private intent</span><span>04 / Consume nonce + settle bounds</span></div></div>
           <aside className="ticket private">
             <p className="label">LOCAL PRIVATE INTENT V1</p>
             <label>NETWORK<input value={intent.chainId} onChange={(e) => setIntent({ ...intent, chainId: e.target.value })} /></label>
@@ -223,17 +212,17 @@ export default function Home() {
             <label>HIDDEN LIMIT PRICE<input value={intent.limitPrice} onChange={(e) => setIntent({ ...intent, limitPrice: e.target.value })} /></label>
             <label>MAX SLIPPAGE BPS<input type="number" min="0" max="2000" value={intent.maxSlippageBps} onChange={(e) => setIntent({ ...intent, maxSlippageBps: Number(e.target.value) })} /></label>
             <label>EXPIRY<input value={intent.expiry} onChange={(e) => setIntent({ ...intent, expiry: e.target.value })} /></label>
-            <label>ONE-TIME NONCE<input value={intent.nonce} readOnly /></label>
+            <label>NONCE<input value={intent.nonce} readOnly /></label>
             <button className="action" onClick={rotateNonce}>ROTATE NONCE</button>
             <button className="action" onClick={prepareCommitment}>GENERATE COMMITMENT</button>
             {intentError ? <p className="error">{intentError}</p> : null}
             {commitment ? <div className="commit"><span>PUBLIC COMMITMENT</span><code>{commitment}</code><span>LOCAL SECRET SALT — DO NOT PUBLISH</span><code className="muted">{secretSalt}</code></div> : null}
-            <p className="fine">Commit/reveal is real cryptographic pre-trade concealment. It is not a claim that normal Cardano L1 settlement is confidential.</p>
+            <p className="fine">Pre-trade concealment only. The readiness gate does not claim confidential L1 settlement.</p>
           </aside>
         </section>
       ) : null}
 
-      <footer><span>NEMESIS / CARDANO DERIVATIVES</span><span>MILESTONES 6–10 / PROTOCOL FOUNDATION</span></footer>
+      <footer><span>SYMBIOTIC / CARDANO DERIVATIVES</span><span>MILESTONES 11–15 / FAIL CLOSED</span></footer>
     </main>
   );
 }

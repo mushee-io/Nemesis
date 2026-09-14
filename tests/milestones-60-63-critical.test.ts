@@ -30,7 +30,11 @@ function confirmation(depth = 50): CardanoConfirmationProof {
 }
 
 test("milestone 60 registry critical state binds independent control roots", () => {
-  const result = validateRegistryCriticalState({ deploymentEpoch: 2, registryNonce: 7, stateRoot: H64, riskRoot: H64B, operatorRoot: "c".repeat(64), settlementRoot: "d".repeat(64), migrationRoot: "e".repeat(64), oracleRound: 10, fundingRound: 9, paused: false });
+  const result = validateRegistryCriticalState({
+    deploymentEpoch: 2, registryNonce: 7, stateRoot: H64, riskRoot: H64B, operatorRoot: "c".repeat(64), settlementRoot: "d".repeat(64), migrationRoot: "e".repeat(64),
+    reviewRoot: "1".repeat(64), recoveryRoot: "2".repeat(64), economicsRoot: "3".repeat(64), oraclePolicyRoot: "4".repeat(64), disputeRoot: "5".repeat(64), accountabilityRoot: "6".repeat(64), invariantRoot: "7".repeat(64), upgradeRecoveryRoot: "8".repeat(64),
+    oracleRound: 10, fundingRound: 9, paused: false
+  });
   assert.match(result.digest, /^[0-9a-f]{64}$/);
   assert.equal(result.deploymentEpoch, 2);
 });

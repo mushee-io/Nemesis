@@ -138,7 +138,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires onchain evidence and explicit mainnet enable", () => {
+test("release gate requires all four validators, onchain evidence and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -148,7 +148,8 @@ test("release gate requires onchain evidence and explicit mainnet enable", () =>
     validators: [
       { name: "collateral" as const, address: `addr1${"q".repeat(40)}`, scriptHash: SCRIPT_HASH },
       { name: "perpetual" as const, address: `addr1${"w".repeat(40)}`, scriptHash: SCRIPT_HASH },
-      { name: "options" as const, address: `addr1${"e".repeat(40)}`, scriptHash: SCRIPT_HASH }
+      { name: "options" as const, address: `addr1${"e".repeat(40)}`, scriptHash: SCRIPT_HASH },
+      { name: "notional" as const, address: `addr1${"r".repeat(40)}`, scriptHash: SCRIPT_HASH }
     ]
   };
   const evidence = {

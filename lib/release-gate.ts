@@ -28,6 +28,14 @@ export type SecurityEvidence = {
   notionalAuctionFairnessPassed: boolean;
   chaosRecoveryPassed: boolean;
   releaseCertificateVerified: boolean;
+  parameterSchemaPinned: boolean;
+  parameterizedDeploymentVerified: boolean;
+  referenceScriptsConfirmed: boolean;
+  chainConfirmationProofsVerified: boolean;
+  liveFundingConfirmed: boolean;
+  liveOptionsSettlementConfirmed: boolean;
+  liveNotionalSettlementConfirmed: boolean;
+  preprodReleaseAttestationVerified: boolean;
 };
 
 export function evaluateReleaseGate(input: {
@@ -62,6 +70,14 @@ export function evaluateReleaseGate(input: {
     { id: "notional-auction", ready: input.evidence.notionalAuctionFairnessPassed, detail: "Notional execution must use committed competing solver quotes and deterministic best execution." },
     { id: "chaos-recovery", ready: input.evidence.chaosRecoveryPassed, detail: "All required provider, indexer, oracle, replay, reorg, withdrawal and rollback fault scenarios must recover within policy." },
     { id: "release-certificate", ready: input.evidence.releaseCertificateVerified, detail: "A fresh governor-approved release certificate must bind code, contracts, SBOM and all economic/security evidence." },
+    { id: "parameter-schema", ready: input.evidence.parameterSchemaPinned, detail: "CIP-0057 validator parameter schemas must be fingerprinted and pinned before applying runtime parameters." },
+    { id: "parameterized-deployment", ready: input.evidence.parameterizedDeploymentVerified, detail: "All validator parameter CBOR, applied script hashes, addresses and deployment epochs must be cryptographically bound." },
+    { id: "reference-scripts", ready: input.evidence.referenceScriptsConfirmed, detail: "All four applied Plutus V3 validators must have confirmed Cardano reference-script UTxOs." },
+    { id: "chain-confirmations-v2", ready: input.evidence.chainConfirmationProofsVerified, detail: "Release transactions must carry fresh block, slot, height, tx-index, UTxO and reference-input confirmation proofs." },
+    { id: "live-funding", ready: input.evidence.liveFundingConfirmed, detail: "At least one confirmed Preprod funding settlement must bind oracle/funding rounds and conserve transferred collateral." },
+    { id: "live-options", ready: input.evidence.liveOptionsSettlementConfirmed, detail: "A confirmed Preprod option settlement must conserve locked collateral across buyer, writer and protocol fee outputs." },
+    { id: "live-notional", ready: input.evidence.liveNotionalSettlementConfirmed, detail: "A confirmed Preprod Notional fill must bind intent commitment, solver auction transcript, user limit and execution receipt." },
+    { id: "preprod-attestation", ready: input.evidence.preprodReleaseAttestationVerified, detail: "A short-lived governor-approved Preprod attestation must bind parameterized deployment, reference scripts, confirmations and live economic executions." },
     { id: "dependency-audit", ready: input.evidence.dependencyAuditReviewed, detail: "Dependency audit findings must be reviewed before release." },
     { id: "security-contact", ready: input.evidence.securityContactConfigured, detail: "A security contact must be configured." },
     { id: "emergency-runbook", ready: input.evidence.emergencyRunbookConfigured, detail: "Emergency response procedures must be configured." }

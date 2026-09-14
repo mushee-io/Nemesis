@@ -37,6 +37,14 @@ export default function StatusPage() {
       notionalAuctionFairnessPassed: flag(process.env.SYMBIOTIC_NOTIONAL_AUCTION_FAIRNESS_PASSED),
       chaosRecoveryPassed: flag(process.env.SYMBIOTIC_CHAOS_RECOVERY_PASSED),
       releaseCertificateVerified: flag(process.env.SYMBIOTIC_RELEASE_CERTIFICATE_VERIFIED),
+      parameterSchemaPinned: flag(process.env.SYMBIOTIC_PARAMETER_SCHEMA_PINNED),
+      parameterizedDeploymentVerified: flag(process.env.SYMBIOTIC_PARAMETERIZED_DEPLOYMENT_VERIFIED),
+      referenceScriptsConfirmed: flag(process.env.SYMBIOTIC_REFERENCE_SCRIPTS_CONFIRMED),
+      chainConfirmationProofsVerified: flag(process.env.SYMBIOTIC_CHAIN_CONFIRMATIONS_V2_VERIFIED),
+      liveFundingConfirmed: flag(process.env.SYMBIOTIC_LIVE_FUNDING_CONFIRMED),
+      liveOptionsSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_OPTIONS_CONFIRMED),
+      liveNotionalSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_NOTIONAL_CONFIRMED),
+      preprodReleaseAttestationVerified: flag(process.env.SYMBIOTIC_PREPROD_ATTESTATION_VERIFIED),
       dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
       securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
       emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
@@ -45,12 +53,12 @@ export default function StatusPage() {
 
   return (
     <main style={{ minHeight: "100vh", padding: "48px", background: "#080808", color: "#f4f4ef", fontFamily: "Arial, Helvetica, sans-serif" }}>
-      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / ECONOMIC SECURITY RELEASE GATE V5</p>
+      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / LIVE PREPROD RELEASE GATE V6</p>
       <h1 style={{ fontSize: 54, margin: "18px 0 10px" }}>{readiness.ready ? "RELEASE READY" : "FAIL CLOSED"}</h1>
-      <p style={{ color: "#999", maxWidth: 980, lineHeight: 1.6 }}>Release readiness now requires the prior Cardano validator, state, oracle, lease, exposure and canary controls plus real collateral solvency reconciliation, bounded perpetual funding, options payout conservation, competitive Notional solver execution, fault-injection recovery and a governor-approved release certificate.</p>
+      <p style={{ color: "#999", maxWidth: 1040, lineHeight: 1.6 }}>The gate now distinguishes compiled code from live Cardano execution. A release must bind CIP-0057 parameter schemas, applied validator instances, confirmed reference-script UTxOs, canonical chain confirmations, a real funding settlement, a real options payout, a competitive Notional fill and a short-lived governor-approved Preprod attestation—on top of all prior solvency, oracle, keeper, exposure, canary and chaos controls.</p>
       <div style={{ marginTop: 36, border: "1px solid #262626" }}>
         {readiness.checks.map((check) => (
-          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "300px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
+          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "310px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
             <strong>{check.id}</strong>
             <span style={{ color: check.ready ? "#e8ff47" : "#ff6161" }}>{check.ready ? "READY" : "MISSING"}</span>
             <span style={{ color: "#818181" }}>{check.detail}</span>

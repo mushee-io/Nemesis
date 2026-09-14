@@ -16,6 +16,11 @@ export type SecurityEvidence = {
   operatorPolicyVerified: boolean;
   incidentRecoveryConfigured: boolean;
   preprodSoakPassed: boolean;
+  stateTransitionBindingPassed: boolean;
+  oracleRoundIntegrityPassed: boolean;
+  executionLeaseControlsPassed: boolean;
+  exposureControlsPassed: boolean;
+  canaryRollbackConfigured: boolean;
 };
 
 export function evaluateReleaseGate(input: {
@@ -37,18 +42,19 @@ export function evaluateReleaseGate(input: {
     { id: "release-provenance", ready: input.evidence.releaseProvenanceVerified, detail: "Release commit, build, blueprint, validator manifest and config digests must be cryptographically bound." },
     { id: "operator-policy", ready: input.evidence.operatorPolicyVerified, detail: "Oracle, keeper, solver and governance operator quorum policy must be reviewed and verified." },
     { id: "incident-recovery", ready: input.evidence.incidentRecoveryConfigured, detail: "Emergency escalation and delayed recovery procedures must be configured." },
-    { id: "preprod-soak", ready: input.evidence.preprodSoakPassed, detail: "Preprod must pass sustained readiness, lag, oracle and transaction-failure soak limits." },
+    { id: "preprod-soak", ready: input.evidence.preprodSoakPassed, detail: "Preprod must pass deep soak limits for chain freshness, confirmation latency, reorgs, oracle quorum and transaction failures." },
+    { id: "state-transition-binding", ready: input.evidence.stateTransitionBindingPassed, detail: "Builder summaries and validators must enforce unique protocol state transitions and continuing outputs." },
+    { id: "oracle-round-integrity", ready: input.evidence.oracleRoundIntegrityPassed, detail: "Oracle rounds must be fresh, monotonic, replay-resistant and independently sourced." },
+    { id: "execution-leases", ready: input.evidence.executionLeaseControlsPassed, detail: "Keeper and solver execution must be bounded by one-time expiring leases and operator rate limits." },
+    { id: "exposure-controls", ready: input.evidence.exposureControlsPassed, detail: "Global, market, account and withdrawal exposure caps must be active." },
+    { id: "canary-rollback", ready: input.evidence.canaryRollbackConfigured, detail: "A staged canary rollout and independently fingerprinted rollback release must be configured." },
     { id: "dependency-audit", ready: input.evidence.dependencyAuditReviewed, detail: "Dependency audit findings must be reviewed before release." },
     { id: "security-contact", ready: input.evidence.securityContactConfigured, detail: "A security contact must be configured." },
     { id: "emergency-runbook", ready: input.evidence.emergencyRunbookConfigured, detail: "Emergency response procedures must be configured." }
   ];
 
   if (input.manifest.network === "mainnet") {
-    checks.push({
-      id: "mainnet-explicit-enable",
-      ready: input.allowMainnet === true,
-      detail: "Mainnet requires an explicit release-time enable flag."
-    });
+    checks.push({ id: "mainnet-explicit-enable", ready: input.allowMainnet === true, detail: "Mainnet requires an explicit release-time enable flag." });
   }
 
   return {

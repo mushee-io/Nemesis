@@ -8,27 +8,26 @@ Symbiotic is a Cardano-native derivatives venue with three primary products:
 
 The repository is intentionally **fail-closed**. A compiled contract, wallet witness, configured address, preview balance or frontend success message is never treated as final settlement without Cardano evidence.
 
-## Current protocol depth — v0.13.0
+## Current protocol depth — v0.14.0
 
-Milestones 50–66 built the five-validator deployment/evidence layer, stable-finality model, Protocol Registry, cross-product reconciliation, migration safety, risk governance, withdrawal containment, liquidation containment, operator governance and the non-executable production-review boundary.
+Milestones 50–74 built the five-validator deployment/evidence layer, Protocol Registry, stable finality, cross-product solvency, migration/risk/operator governance, review transparency, deterministic recovery, oracle independence, settlement disputes, operator accountability, global invariants and V9 critical review.
 
-Milestones **66–74** deepen the safety architecture around that protocol:
+Milestones **80–85** add mixed execution-liveness hardening:
 
-- append-only production-review transparency and certificate revocation evidence
-- deterministic multi-copy state recovery that must reproduce the same UTxO/state root
-- exact fee and insurance-reserve conservation
-- weighted oracle quorum with signer/provider independence and concentration limits
-- settlement challenge windows and resolver-backed dispute state
-- keeper/solver bond accountability, strikes, cooldowns and severity-bounded penalties
-- a global invariant root spanning state, economics, oracle policy, disputes and operator accountability
-- rollback-vs-forward-fix upgrade recovery rules
-- a V9 critical review certificate that recomputes every new safety root and still returns `activationAllowed: false`
+- independent provider quorum, deterministic provider selection and failover cooldowns
+- ledger-error classification and safe stale-UTxO transaction rebuilds
+- bounded dependent transaction chaining with ancestor invalidation
+- deterministic `NORMAL -> LIMIT_ONLY -> REDUCE_ONLY -> SETTLEMENT_ONLY -> PAUSED` market modes
+- review-only Keeper/Solver/Builder failover ranking with bond and infrastructure-diversity requirements
+- a V10 liveness policy root committed by the Protocol Registry
+- a V10 liveness review that recomputes every policy/evidence domain and still returns `activationAllowed: false`
 
 Detailed architecture:
 
 - `docs/milestones-55-60.md`
 - `docs/milestones-60-66-critical.md`
 - `docs/milestones-66-74.md`
+- `docs/milestones-80-85.md`
 
 ## Validator set
 
@@ -58,90 +57,81 @@ The Registry now anchors:
 - operator-accountability root
 - global invariant root
 - upgrade-recovery root
+- **liveness policy root**
 - oracle round
 - funding round
 - pause state
 - monotonic nonce
 
-`Advance` creates the next deployment generation. `Checkpoint` updates in-epoch operational and safety commitments. `Pause` and `Resume` preserve every committed root.
+`Advance` creates the next deployment generation. `Checkpoint` updates in-epoch operational and safety commitments. `Pause` and `Resume` preserve every committed root, including the V10 liveness root.
 
 Because Aiken parameters and Registry datum/redeemer logic affect compiled code, changes create a new Registry script fingerprint and therefore a new deployment generation.
 
-## Recovery and economic conservation
+## Mixed execution resilience
 
-State recovery is valid only when recovered product UTxOs exactly reproduce the canonical checkpoint root. Recovery copies must agree on one snapshot digest and be stored across independent provider/region pairs.
+Provider health is treated as quorum evidence rather than a single endpoint response. Healthy read providers must be fresh, close in chain tip and distributed across independent provider groups. Submission providers are evaluated separately.
 
-Fee accounting uses exact conservation:
-
-```text
-gross fee = insurance + treasury + maker rebate + operator allocation
-```
-
-Insurance accounting separately enforces:
+Retry behavior is classified by ledger failure:
 
 ```text
-closing reserve = opening reserve + fee allocations + contributions - claims
+BadInputsUTxO            -> rebuild from fresh state and fresh inputs
+OutsideValidityInterval  -> rebuild validity interval
+provider timeout         -> verify transaction presence before resubmission
+unsafe/unknown failures  -> fail closed
 ```
 
-The closing reserve cannot fall below the configured insurance floor.
+Dependent Cardano transaction chains are bounded. Every link consumes the immediate predecessor output, keeps adequate validity headroom, uses unique state/collateral references and preserves shared reference inputs. Failure of one ancestor invalidates every descendant from that point.
 
-## Oracle independence
+## Degraded market control
 
-Oracle security is based on independence rather than endpoint count. Policy commits source/signing identity, provider group, region, weight, quorum threshold, concentration limits, freshness and maximum deviation.
+Symbiotic maps infrastructure/economic health to deterministic market capability:
 
-One signer cannot represent multiple sources. A provider group cannot exceed its concentration cap. Accepted rounds require enough fresh weight from enough independent groups and all accepted observations must remain within deviation bounds around the weighted median.
+```text
+NORMAL
+  -> LIMIT_ONLY
+  -> REDUCE_ONLY
+  -> SETTLEMENT_ONLY
+  -> PAUSED
+```
 
-## Settlement disputes and operator accountability
+Oracle/finality failure forces settlement-only behavior; insolvency or unresolved critical disputes force pause. Recovery to a less restrictive mode requires both a minimum elapsed duration and repeated healthy observations.
 
-Perp funding, Options settlement and Notional fills may enter a challenge window before finalization. Challenged settlements require evidence, bond, resolver quorum and explicit resolution before becoming final.
+## Operator failover boundary
 
-Keeper/Solver accountability tracks bond, strikes, disable state and cooldown. Proven replay, stale-oracle use, limit violations, unauthorized state transitions or quote-commitment breaches can trigger severity-bounded penalties after independent review.
+Keeper, Solver and Builder replacement candidates may be reviewed using heartbeat, bond, strike history, region and infrastructure-provider diversity. Ranking is deterministic, but the result is deliberately non-executable:
 
-## Global invariant and upgrade recovery
+```text
+reviewReady: true
+executionAllowed: false
+```
 
-The global invariant recomputes:
+CI is therefore evidence and review infrastructure, not authority over protocol operators.
 
-- canonical protocol state root
-- economics root
-- oracle policy root
-- dispute root
-- accountability root
-- assets, liabilities and solvency surplus
+## V10 review boundary
 
-Economics insurance must exactly match canonical checkpoint insurance.
+V10 independently hashes:
 
-Upgrade recovery distinguishes rollback-safe incidents from irreversible post-upgrade activity. A rollback is allowed only before irreversible settlements and must exactly restore the pre-upgrade root. Once irreversible settlements exist, recovery must use a forward-fix target.
+- provider failover policy
+- transaction rebuild policy
+- transaction-chain policy
+- degraded-market policy
+- operator-failover review policy
 
-## V9 production review boundary
+These compose into the Registry `liveness_root`. The V10 review then validates current evidence against each policy plus the Registry commitment and requires at least three independent reviewers.
 
-V9 independently recomputes and compares the Registry against:
-
-- review transparency
-- recovery
-- economics
-- oracle policy
-- settlement disputes
-- operator accountability
-- global invariants
-- upgrade recovery
-
-It also requires the previous critical review to be the latest active transparency-log entry and at least three independent final reviewers.
-
-A fully valid certificate returns:
+A fully valid V10 review returns:
 
 ```text
 reviewReady: true
 activationAllowed: false
 ```
 
-That boundary is intentional. CI, GitHub, environment variables and repository code are not treated as authority to activate live funds.
-
 ## Contract build
 
 CI pins Aiken `v1.1.22` and runs:
 
 ```bash
-aiken check --max-success=3000
+aiken check --max-success=3500
 aiken build
 npm run contracts:verify
 npm run contracts:manifest
@@ -169,10 +159,11 @@ CI additionally records:
 - deep-release source fingerprints
 - critical-control source fingerprints
 - V9 critical-source fingerprints
+- V10 liveness-source fingerprints
 - validator / Registry contract fingerprints
 
 ## Current deployment boundary
 
-The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator control architecture and the v0.13.0 V9 critical production-review layer.
+The repository contains the **Perpetual DEX + Options + Notional Market** protocol, the five-validator control architecture and the v0.14.0 V10 execution-liveness review layer.
 
-It does **not** claim that this expanded Registry generation is deployed, that previous Preprod evidence is still valid for the new Registry fingerprint, or that any live network has been activated. Real deployment still requires fresh on-chain evidence for this exact compiled generation plus external manual authorization.
+It does **not** claim that this newest Registry generation is deployed, that previous Preprod evidence remains valid for the changed Registry fingerprint, or that any live network/operator failover has been activated. Real deployment still requires fresh on-chain evidence for this exact compiled generation plus external manual authorization.

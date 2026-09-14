@@ -38,13 +38,16 @@ validator notional(solver_authority: VerificationKeyHash) {
         datum.nonce >= 0,
         datum.settled == 0,
       }
+    let continuation_count =
+      list.count(self.outputs, fn(output) { output.address == own_input.output.address })
 
     when redeemer is {
-      Cancel -> owner_signed && valid_active_state
-      CloseReceipt -> owner_signed && datum.settled == 1 && datum.nonce > 0
+      Cancel -> owner_signed && valid_active_state && continuation_count == 0
+      CloseReceipt -> owner_signed && datum.settled == 1 && datum.nonce > 0 && continuation_count == 0
       Fill(reveal_preimage, execution_price, attested_at_ms) -> {
         expect execution_price > 0
         expect attested_at_ms > 0
+        expect continuation_count == 1
         let commitment_matches = crypto.sha2_256(reveal_preimage) == datum.commitment
         expect Some(receipt_output) =
           list.find(

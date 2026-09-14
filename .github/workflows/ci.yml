@@ -25,10 +25,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g @aiken-lang/aiken@1.1.22
-      - run: aiken --version
-      - run: aiken check
-      - run: aiken build
+      - name: Install pinned Aiken
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
+          echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
+      - run: "$HOME/.aiken/bin/aiken --version"
+      - run: "$HOME/.aiken/bin/aiken check"
+      - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json
       - uses: actions/upload-artifact@v4

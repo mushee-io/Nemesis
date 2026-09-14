@@ -1,7 +1,16 @@
 import { validatePreparedTransaction, type CardanoNetwork, type PreparedCardanoTransaction } from "./cardano-execution";
 import { validateTransactionFirewall, type HardenedPreparedTransaction, type TransactionFirewallPolicy } from "./transaction-firewall";
 
-export type BuilderAction = "DEPOSIT_COLLATERAL" | "WITHDRAW_COLLATERAL" | "OPEN_PERP" | "CLOSE_PERP" | "SETTLE_OPTION" | "LIQUIDATE" | "SETTLE_NOTIONAL";
+export type BuilderAction =
+  | "DEPLOY_REFERENCE_SCRIPT"
+  | "DEPOSIT_COLLATERAL"
+  | "WITHDRAW_COLLATERAL"
+  | "OPEN_PERP"
+  | "CLOSE_PERP"
+  | "APPLY_FUNDING"
+  | "SETTLE_OPTION"
+  | "LIQUIDATE"
+  | "SETTLE_NOTIONAL";
 
 export type BuilderRequest = {
   action: BuilderAction;

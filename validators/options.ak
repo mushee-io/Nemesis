@@ -16,6 +16,7 @@ pub type OptionDatum {
   collateral_usd: Int,
   settled: Int,
   settlement_price: Int,
+  settlement_payout: Int,
   nonce: Int,
 }
 
@@ -53,7 +54,11 @@ validator options(
         datum.contracts > 0,
         datum.collateral_usd >= 0,
         datum.settled == 0 || datum.settled == 1,
-        if datum.settled == 0 { datum.settlement_price == 0 } else { datum.settlement_price > 0 },
+        if datum.settled == 0 {
+          datum.settlement_price == 0 && datum.settlement_payout == 0
+        } else {
+          datum.settlement_price > 0 && datum.settlement_payout >= 0 && datum.settlement_payout <= datum.collateral_usd
+        },
       }
     let continuation_count =
       list.count(self.outputs, fn(output) { output.address == own_input.output.address })
@@ -85,6 +90,7 @@ validator options(
                       raw.collateral_usd == next_units,
                       raw.settled == 0,
                       raw.settlement_price == 0,
+                      raw.settlement_payout == 0,
                       raw.nonce == datum.nonce + 1,
                     }
                   } else {
@@ -100,6 +106,14 @@ validator options(
         expect settlement_price > 0
         expect attested_at_ms >= datum.expiry_ms
         expect datum.settled == 0
+        let intrinsic =
+          if datum.kind == 0 {
+            if settlement_price > datum.strike { settlement_price - datum.strike } else { 0 }
+          } else {
+            if datum.strike > settlement_price { datum.strike - settlement_price } else { 0 }
+          }
+        let payout = intrinsic * datum.contracts
+        expect payout <= datum.collateral_usd
         expect continuation_count == 1
         expect Some(next_output) =
           list.find(
@@ -122,6 +136,7 @@ validator options(
                       next_units == input_units,
                       raw.settled == 1,
                       raw.settlement_price == settlement_price,
+                      raw.settlement_payout == payout,
                       raw.nonce == datum.nonce + 1,
                     }
                   } else {
@@ -146,6 +161,7 @@ validator options(
           valid_series,
           datum.settled == 1,
           datum.settlement_price > 0,
+          datum.settlement_payout >= 0,
           continuation_count == 0,
           self.validity_range |> interval.is_entirely_after(datum.expiry_ms),
         }

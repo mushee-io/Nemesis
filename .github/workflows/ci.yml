@@ -28,6 +28,7 @@ jobs:
           mkdir -p artifacts
           npm sbom --sbom-format=cyclonedx > artifacts/sbom.cdx.json
           sha256sum package-lock.json > artifacts/package-lock.sha256
+          sha256sum package.json > artifacts/package-json.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: symbiotic-web-build-provenance
@@ -37,6 +38,7 @@ jobs:
             artifacts/web-build-digest.json
             artifacts/sbom.cdx.json
             artifacts/package-lock.sha256
+            artifacts/package-json.sha256
           if-no-files-found: error
 
   contracts:
@@ -51,16 +53,18 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check --max-success=1000"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=1500"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json
-      - run: sha256sum plutus.json artifacts/validator-manifest.json > artifacts/contracts.sha256
+      - run: node scripts/export-parameter-schema.mjs plutus.json artifacts/parameter-schema.json
+      - run: sha256sum plutus.json artifacts/validator-manifest.json artifacts/parameter-schema.json > artifacts/contracts.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: symbiotic-validator-artifacts
           path: |
             plutus.json
             artifacts/validator-manifest.json
+            artifacts/parameter-schema.json
             artifacts/contracts.sha256
           if-no-files-found: error

@@ -5,10 +5,14 @@ const inputPath = process.argv[2] ?? "plutus.json";
 const outputPath = process.argv[3] ?? "artifacts/validator-manifest.json";
 if (!fs.existsSync(inputPath)) throw new Error(`Missing ${inputPath}; run aiken build first`);
 const blueprint = JSON.parse(fs.readFileSync(inputPath, "utf8"));
-const selected = (blueprint.validators ?? []).filter((validator) =>
-  ["collateral.collateral.spend", "perpetual.perpetual.spend", "options.options.spend"].includes(validator.title)
-);
-if (selected.length !== 3) throw new Error(`Expected 3 Symbiotic spend validators, found ${selected.length}`);
+const titles = [
+  "collateral.collateral.spend",
+  "perpetual.perpetual.spend",
+  "options.options.spend",
+  "notional.notional.spend"
+];
+const selected = (blueprint.validators ?? []).filter((validator) => titles.includes(validator.title));
+if (selected.length !== 4) throw new Error(`Expected 4 Symbiotic spend validators, found ${selected.length}`);
 
 const validators = selected.map((validator) => {
   if (typeof validator.compiledCode !== "string") throw new Error(`Missing compiled code for ${validator.title}`);
@@ -29,7 +33,7 @@ const artifact = {
   validators
 };
 
-fs.mkdirSync(new URL("../artifacts/", import.meta.url), { recursive: true });
-fs.mkdirSync(outputPath.includes("/") ? outputPath.slice(0, outputPath.lastIndexOf("/")) : ".", { recursive: true });
+const directory = outputPath.includes("/") ? outputPath.slice(0, outputPath.lastIndexOf("/")) : ".";
+fs.mkdirSync(directory, { recursive: true });
 fs.writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`);
 console.log(`Wrote ${outputPath}`);

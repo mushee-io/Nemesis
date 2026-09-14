@@ -66,7 +66,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires deep milestones 50-55 and explicit mainnet enable", () => {
+test("release gate requires milestones 55-60 and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -77,7 +77,8 @@ test("release gate requires deep milestones 50-55 and explicit mainnet enable", 
       { name: "collateral" as const, address: `addr1${"q".repeat(40)}`, scriptHash: SCRIPT_HASH },
       { name: "perpetual" as const, address: `addr1${"w".repeat(40)}`, scriptHash: SCRIPT_HASH },
       { name: "options" as const, address: `addr1${"e".repeat(40)}`, scriptHash: SCRIPT_HASH },
-      { name: "notional" as const, address: `addr1${"r".repeat(40)}`, scriptHash: SCRIPT_HASH }
+      { name: "notional" as const, address: `addr1${"r".repeat(40)}`, scriptHash: SCRIPT_HASH },
+      { name: "registry" as const, address: `addr1${"t".repeat(40)}`, scriptHash: SCRIPT_HASH }
     ]
   };
   const evidence = {
@@ -113,11 +114,18 @@ test("release gate requires deep milestones 50-55 and explicit mainnet enable", 
     liveOptionsSettlementConfirmed: true,
     liveNotionalSettlementConfirmed: true,
     preprodReleaseAttestationVerified: true,
+    deploymentEpochChainVerified: true,
+    protocolRegistryCheckpointVerified: true,
+    stableFinalityVerified: true,
+    oracleFundingAnchorVerified: true,
+    crossProductReconciliationVerified: true,
+    releaseLifecycleVerified: true,
+    deepPreprodReleaseVerified: true,
     dependencyAuditReviewed: true,
     securityContactConfigured: true,
     emergencyRunbookConfigured: true
   };
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: false }).ready, false);
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: true }).ready, true);
-  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, preprodReleaseAttestationVerified: false }, allowMainnet: true }).ready, false);
+  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, deepPreprodReleaseVerified: false }, allowMainnet: true }).ready, false);
 });

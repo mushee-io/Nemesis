@@ -1,13 +1,15 @@
 {
   "name": "symbiotic-cardano-derivatives",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "contracts:verify": "node scripts/verify-blueprint.mjs plutus.json",
+    "contracts:manifest": "node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json"
   },
   "dependencies": {
     "next": "^15.2.0",

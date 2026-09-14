@@ -179,7 +179,8 @@ test("deployment readiness remains false until every execution dependency exists
     validators: [
       { name: "collateral", address: `addr_test1${"q".repeat(40)}`, scriptHash: SCRIPT_HASH },
       { name: "perpetual", address: `addr_test1${"w".repeat(40)}`, scriptHash: SCRIPT_HASH },
-      { name: "options", address: `addr_test1${"e".repeat(40)}`, scriptHash: SCRIPT_HASH }
+      { name: "options", address: `addr_test1${"e".repeat(40)}`, scriptHash: SCRIPT_HASH },
+      { name: "notional", address: `addr_test1${"r".repeat(40)}`, scriptHash: SCRIPT_HASH }
     ]
   });
   assert.equal(ready.ready, true);

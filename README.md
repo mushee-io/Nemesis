@@ -1,89 +1,117 @@
-# Nemesis
+# Symbiotic
 
-Nemesis is a Cardano-native derivatives venue focused on three products:
+Symbiotic is a Cardano-native derivatives venue focused on three products:
 
-1. **Perpetual Markets** — the primary product: leveraged long/short markets, advanced orders, funding, margin, liquidation and portfolio risk.
-2. **Options** — European calls and puts for v1, with model pricing, Greeks, fully-collateralized writing and deterministic expiry settlement rules.
+1. **Perpetual Markets** — leveraged long/short markets, advanced orders, funding, margin, liquidation and portfolio risk.
+2. **Options** — European calls and puts with model pricing, Greeks, fully-collateralized writing and deterministic expiry settlement.
 3. **Notional Market** — confidential pre-trade intent designed to keep direction, size and limit price out of public order flow before matching.
 
-## Current build
-
-The repository contains a Next.js/TypeScript trading terminal plus protocol-domain libraries. The application intentionally separates deterministic protocol logic from Cardano execution so unfinished settlement cannot be presented as successful trading.
-
-Implemented foundations include:
-
-- CIP-30 Cardano wallet discovery and connection
-- perpetual PnL, leverage, margin, liquidation and account-health calculations
-- market/limit/stop-market/take-profit order validation
-- maker/taker fees and bounded funding-rate calculations
-- European option pricing with Delta, Gamma, Vega and Theta
-- fully-collateralized option writer rules and expiry settlement calculations
-- portfolio-level margin and liquidation candidate calculations
-- oracle freshness, confidence and reference-deviation guards
-- Notional salted SHA-256 commitments with chain ID, expiry, nonce and slippage bounds
-- reveal verification and replay-protection primitives
-- RFQ validation and inventory-aware market-maker quote ladders
-- typed protocol intent builders for future Cardano transaction construction
-- automated protocol tests in CI
+The repository is intentionally fail-closed: deterministic calculations may run before testnet deployment, but Symbiotic does not present a transaction as settled until a real Cardano transaction is signed, assembled, submitted and confirmed.
 
 ## Milestones 6–10
 
-### Milestone 6 — Advanced perpetual markets
+Implemented before this phase:
 
-- market, limit, stop-market and take-profit order schemas
-- leverage and maximum-position validation
-- maker/taker fee calculations
-- bounded funding-rate and funding-payment calculations
-- improved liquidation state and current-notional accounting
+- advanced perpetual market/limit/stop/take-profit validation
+- leverage limits, maker/taker fees and funding calculations
+- fully-collateralized options and deterministic expiry settlement math
+- Notional commitments with chain binding, expiry, slippage, nonce and replay controls
+- unified portfolio health and partial-liquidation sizing
+- oracle freshness/confidence/deviation guards
+- typed protocol intents, RFQ validation and inventory-aware market-maker quoting
 
-### Milestone 7 — Options market settlement
+## Milestones 11–15
 
-- canonical option-series IDs
-- call/put intrinsic-value and break-even calculations
-- fully collateralized writer requirements
-- deterministic European expiry settlement
-- buyer maximum-loss visibility in the terminal
+### Milestone 11 — Cardano execution boundary
 
-### Milestone 8 — Notional Market hardening
+- CIP-30 network enforcement
+- prepared transaction schema with request ID, network, expiry and intent hash
+- unsigned CBOR validation
+- wallet witness signing using `signTx(..., true)`
+- trusted backend assembly of unsigned transaction + witness set
+- wallet submission of the final signed CBOR
+- one-time transaction request registry to prevent accidental replay
+- server-side transaction builder client and `/api/cardano/prepare` + `/api/cardano/assemble` routes
 
-- versioned canonical hidden intents
-- one-time nonces
-- network/chain binding
-- expiry validation
-- maximum-slippage bounds
-- salted commitment creation
-- reveal verification
-- replay tracking primitives
+Symbiotic never treats the witness set returned by a wallet as a complete signed transaction.
 
-### Milestone 9 — Unified portfolio and liquidation risk
+### Milestone 12 — Oracle quorum and chain indexer
 
-- multi-position account equity
-- initial and maintenance margin aggregation
-- reserved option collateral
-- available collateral
-- health factor and liquidation buffer
-- liquidation candidate ranking
-- partial-liquidation sizing helper
+- independent named oracle sources
+- stale/confidence filtering
+- median-based quorum aggregation
+- divergence rejection
+- minimum-source requirements
+- indexed transaction states
+- protocol-event reducer
+- event deduplication
+- monotonic slot enforcement
+- transaction-confirmation provider interface
 
-### Milestone 10 — Protocol SDK and professional liquidity foundations
+### Milestone 13 — Options lifecycle authorization
 
-- oracle freshness/confidence/deviation guardrails
-- typed expiring perp and option protocol intents
-- market-maker inventory skew controls
-- multi-level quote ladder generation
-- RFQ quote validation
-- machine-readable capability boundaries
-- CI now runs typecheck, protocol tests and production build
+- canonical option settlement IDs
+- ACTIVE / EXPIRED_UNSETTLED / SETTLED lifecycle states
+- settlement only after expiry
+- settlement price sourced from oracle quorum
+- deterministic payout calculation
+- one-time settlement registry
+- oracle-source attribution in settlement records
 
-## Current execution boundary
+### Milestone 14 — Liquidation keepers and validator mirrors
 
-Cardano trade settlement is **not live yet**. The interface contains real calculations and cryptographic primitives, but transaction submission remains disabled until Cardano validators, transaction construction, a live oracle adapter and indexer are connected.
+- keeper jobs only for liquidatable positions
+- oracle quorum required at liquidation time
+- mark/oracle deviation guard
+- bounded partial-liquidation sizing
+- short-lived keeper jobs
+- replay-safe keeper registry
+- off-chain validator transition mirrors for collateral and perpetual state
+- signer, identity and nonce invariants
 
-Nemesis must fail closed: no fake balances, no fake fills, no frontend-only settlement success and no claim that a preview calculation is authoritative on-chain state.
+The validator mirrors are not a substitute for compiled Cardano validators; they define the state-transition rules the on-chain validators must enforce.
 
-## Notional Market privacy boundary
+### Milestone 15 — Testnet readiness gate
 
-Notional currently provides **pre-trade concealment primitives**, not private Cardano L1 settlement. A trader can create a salted commitment to an intent whose direction, amount and limit remain local until reveal/matching. Normal Cardano settlement is public unless Nemesis later introduces and validates additional privacy infrastructure.
+- environment-driven deployment manifest
+- provider readiness
+- indexer readiness
+- transaction-builder readiness
+- minimum two-source oracle quorum readiness
+- required collateral/perpetual/options validator address + script-hash checks
+- `/api/readiness` machine-readable health endpoint
+- `/status` human-readable deployment dashboard
+- testnet state remains **FAIL CLOSED** until every required dependency is configured
+
+## Cardano architecture
+
+The browser connects through CIP-30. A trusted backend transaction builder constructs unsigned CBOR. The wallet produces witnesses. The trusted assembler combines the transaction body with the witness set. The wallet then submits the final signed transaction. Chain/indexer confirmation becomes the authoritative application state.
+
+This follows the Cardano dApp split of wallet connection/signing plus provider-backed transaction construction/submission rather than exposing signing keys or pretending frontend state is settlement.
+
+## Current on-chain boundary
+
+The execution pipeline and validation rules are now implemented in TypeScript, but **compiled and deployed collateral, perpetual and options validators are still required** before Symbiotic can be considered live on Cardano testnet.
+
+The `/status` and `/api/readiness` surfaces will remain not-ready until those validator script hashes/addresses and the provider, indexer, builder and oracle sources are configured.
+
+## Environment
+
+```bash
+SYMBIOTIC_CARDANO_NETWORK=preprod
+SYMBIOTIC_PROVIDER_ENDPOINT=https://...
+SYMBIOTIC_INDEXER_ENDPOINT=https://...
+SYMBIOTIC_TX_BUILDER_ENDPOINT=https://...
+SYMBIOTIC_TX_BUILDER_TOKEN=...
+SYMBIOTIC_ORACLE_SOURCES=oracle-a,oracle-b
+
+SYMBIOTIC_COLLATERAL_VALIDATOR_ADDRESS=addr_test1...
+SYMBIOTIC_COLLATERAL_VALIDATOR_HASH=...
+SYMBIOTIC_PERPETUAL_VALIDATOR_ADDRESS=addr_test1...
+SYMBIOTIC_PERPETUAL_VALIDATOR_HASH=...
+SYMBIOTIC_OPTIONS_VALIDATOR_ADDRESS=addr_test1...
+SYMBIOTIC_OPTIONS_VALIDATOR_HASH=...
+```
 
 ## Local development
 
@@ -102,10 +130,10 @@ npm run build
 
 ## Next on-chain work
 
-1. Cardano collateral vault and market registry validators
-2. live oracle adapter with the implemented guardrails
-3. perpetual position/funding/liquidation state validators
-4. option-series registry and expiry-settlement validator
-5. transaction builder and wallet signing flow for real testnet execution
-6. Notional encrypted matcher/solver transport and bounded settlement authorization
-7. indexer, portfolio state synchronization and public Cardano testnet deployment
+1. write/compile the collateral, perpetual and options validators in Aiken
+2. run validator property/invariant tests
+3. deploy validators to Cardano Preview or Preprod
+4. connect a real transaction-building provider to the server-side builder interface
+5. connect live independent oracle sources
+6. run end-to-end wallet → prepare → sign → assemble → submit → index → confirm tests
+7. security review before any mainnet deployment

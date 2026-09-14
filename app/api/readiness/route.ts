@@ -40,13 +40,21 @@ export async function GET() {
         notionalAuctionFairnessPassed: flag(process.env.SYMBIOTIC_NOTIONAL_AUCTION_FAIRNESS_PASSED),
         chaosRecoveryPassed: flag(process.env.SYMBIOTIC_CHAOS_RECOVERY_PASSED),
         releaseCertificateVerified: flag(process.env.SYMBIOTIC_RELEASE_CERTIFICATE_VERIFIED),
+        parameterSchemaPinned: flag(process.env.SYMBIOTIC_PARAMETER_SCHEMA_PINNED),
+        parameterizedDeploymentVerified: flag(process.env.SYMBIOTIC_PARAMETERIZED_DEPLOYMENT_VERIFIED),
+        referenceScriptsConfirmed: flag(process.env.SYMBIOTIC_REFERENCE_SCRIPTS_CONFIRMED),
+        chainConfirmationProofsVerified: flag(process.env.SYMBIOTIC_CHAIN_CONFIRMATIONS_V2_VERIFIED),
+        liveFundingConfirmed: flag(process.env.SYMBIOTIC_LIVE_FUNDING_CONFIRMED),
+        liveOptionsSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_OPTIONS_CONFIRMED),
+        liveNotionalSettlementConfirmed: flag(process.env.SYMBIOTIC_LIVE_NOTIONAL_CONFIRMED),
+        preprodReleaseAttestationVerified: flag(process.env.SYMBIOTIC_PREPROD_ATTESTATION_VERIFIED),
         dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
         securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
         emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
       }
     });
-    return NextResponse.json({ product: "Symbiotic", gate: "economic-security-release-v5", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
+    return NextResponse.json({ product: "Symbiotic", gate: "live-preprod-release-v6", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
   } catch (error) {
-    return NextResponse.json({ product: "Symbiotic", gate: "economic-security-release-v5", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
+    return NextResponse.json({ product: "Symbiotic", gate: "live-preprod-release-v6", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
   }
 }

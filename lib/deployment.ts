@@ -1,7 +1,7 @@
 import type { CardanoNetwork } from "./cardano-execution";
 
 export type ValidatorDeployment = {
-  name: "collateral" | "perpetual" | "options" | "notional";
+  name: "collateral" | "perpetual" | "options" | "notional" | "registry";
   address?: string;
   scriptHash?: string;
 };
@@ -40,28 +40,12 @@ function validCardanoAddress(value?: string) {
 }
 
 export function evaluateDeploymentReadiness(manifest: SymbioticDeploymentManifest) {
-  const requiredValidators: ValidatorDeployment["name"][] = ["collateral", "perpetual", "options", "notional"];
+  const requiredValidators: ValidatorDeployment["name"][] = ["collateral", "perpetual", "options", "notional", "registry"];
   const checks: ReadinessCheck[] = [
-    {
-      id: "provider",
-      ready: validHttpUrl(manifest.providerEndpoint),
-      detail: "Chain provider endpoint must be configured over HTTPS (localhost allowed in development)."
-    },
-    {
-      id: "indexer",
-      ready: validHttpUrl(manifest.indexerEndpoint),
-      detail: "Indexer endpoint must be configured before portfolio state is considered authoritative."
-    },
-    {
-      id: "transaction-builder",
-      ready: validHttpUrl(manifest.transactionBuilderEndpoint),
-      detail: "A backend transaction builder/assembler is required for CIP-30 signing."
-    },
-    {
-      id: "oracle-quorum",
-      ready: new Set(manifest.oracleSources.filter(Boolean)).size >= 2,
-      detail: "At least two independent oracle source identifiers are required."
-    }
+    { id: "provider", ready: validHttpUrl(manifest.providerEndpoint), detail: "Chain provider endpoint must be configured over HTTPS (localhost allowed in development)." },
+    { id: "indexer", ready: validHttpUrl(manifest.indexerEndpoint), detail: "Indexer endpoint must be configured before portfolio state is authoritative." },
+    { id: "transaction-builder", ready: validHttpUrl(manifest.transactionBuilderEndpoint), detail: "A backend transaction builder/assembler is required for CIP-30 signing." },
+    { id: "oracle-quorum", ready: new Set(manifest.oracleSources.filter(Boolean)).size >= 2, detail: "At least two independent oracle source identifiers are required." }
   ];
 
   for (const name of requiredValidators) {
@@ -73,10 +57,9 @@ export function evaluateDeploymentReadiness(manifest: SymbioticDeploymentManifes
     });
   }
 
-  const ready = checks.every((check) => check.ready);
   return {
     network: manifest.network,
-    ready,
+    ready: checks.every((check) => check.ready),
     checks,
     missing: checks.filter((check) => !check.ready).map((check) => check.id)
   };
@@ -86,7 +69,7 @@ export function deploymentManifestFromEnv(env: Record<string, string | undefined
   const network = env.SYMBIOTIC_CARDANO_NETWORK;
   if (network && !["preview", "preprod", "mainnet"].includes(network)) throw new Error("Invalid SYMBIOTIC_CARDANO_NETWORK");
 
-  const validators: ValidatorDeployment[] = (["COLLATERAL", "PERPETUAL", "OPTIONS", "NOTIONAL"] as const).map((key) => ({
+  const validators: ValidatorDeployment[] = (["COLLATERAL", "PERPETUAL", "OPTIONS", "NOTIONAL", "REGISTRY"] as const).map((key) => ({
     name: key.toLowerCase() as ValidatorDeployment["name"],
     address: env[`SYMBIOTIC_${key}_VALIDATOR_ADDRESS`],
     scriptHash: env[`SYMBIOTIC_${key}_VALIDATOR_HASH`]

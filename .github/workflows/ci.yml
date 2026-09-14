@@ -17,3 +17,27 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned Aiken
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
+          echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
+      - run: "$HOME/.aiken/bin/aiken --version"
+      - run: "$HOME/.aiken/bin/aiken check"
+      - run: "$HOME/.aiken/bin/aiken build"
+      - run: node scripts/verify-blueprint.mjs plutus.json
+      - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symbiotic-validator-artifacts
+          path: |
+            plutus.json
+            artifacts/validator-manifest.json
+          if-no-files-found: error

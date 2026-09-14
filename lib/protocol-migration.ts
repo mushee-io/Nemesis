@@ -31,15 +31,18 @@ export function validateProtocolMigration(plan: ProtocolMigrationPlan, minimumGo
     throw new Error("Upgrade migration must advance one epoch and account for live state");
   }
   if (plan.validators.length !== REQUIRED_VALIDATOR_TITLES.length) throw new Error("Migration must cover all validators");
-  const nextHashes: string[] = [], nextRefs: string[] = [];
+  const nextHashes: string[] = [], nextRefs: string[] = [], previousHashes: string[] = [], previousRefs: string[] = [];
   for (const title of REQUIRED_VALIDATOR_TITLES) {
     const item = plan.validators.find((v) => v.title === title);
     if (!item) throw new Error(`Missing migration validator ${title}`);
     nextHashes.push(h56(item.nextScriptHash, `${title} next hash`)); nextRefs.push(ref(item.nextReference, `${title} next reference`));
-    if (plan.mode === "UPGRADE") { h56(item.previousScriptHash, `${title} previous hash`); ref(item.previousReference, `${title} previous reference`); }
-    else if (item.previousScriptHash || item.previousReference) throw new Error("Genesis migration cannot claim previous validator state");
+    if (plan.mode === "UPGRADE") {
+      previousHashes.push(h56(item.previousScriptHash, `${title} previous hash`));
+      previousRefs.push(ref(item.previousReference, `${title} previous reference`));
+    } else if (item.previousScriptHash || item.previousReference) throw new Error("Genesis migration cannot claim previous validator state");
   }
   unique(nextHashes, "Next script hashes"); unique(nextRefs, "Next references");
+  if (plan.mode === "UPGRADE") { unique(previousHashes, "Previous script hashes"); unique(previousRefs, "Previous references"); }
   const ids: string[] = [], beforeRefs: string[] = [], afterRefs: string[] = [];
   const leaves = plan.state.map((s) => {
     const before = ref(s.previousUtxoRef, "Migration source"), after = ref(s.nextUtxoRef, "Migration target");
@@ -48,6 +51,7 @@ export function validateProtocolMigration(plan: ProtocolMigrationPlan, minimumGo
     return [s.product, s.stateId, before, after, h64(s.beforeDigest, "Before digest"), h64(s.afterDigest, "After digest"), s.nonceBefore, s.nonceAfter].join(":");
   });
   unique(ids, "Migration state ids"); unique(beforeRefs, "Migration sources"); unique(afterRefs, "Migration targets");
-  const digest = createHash("sha256").update([plan.id, plan.network, plan.mode, plan.fromEpoch, plan.toEpoch, previousRoot, nextRoot, plan.parameterSchemaSha256.toLowerCase(), plan.nextDeploymentSha256.toLowerCase(), ...plan.validators.map((v) => `${v.title}:${v.nextScriptHash}:${v.nextReference}`).sort(), ...leaves.sort(), ...plan.governorApprovals.slice().sort()].join("|")).digest("hex");
+  const validators = plan.validators.map((v) => `${v.title}:${v.previousScriptHash ?? "GENESIS"}:${v.previousReference ?? "GENESIS"}:${v.nextScriptHash}:${v.nextReference}`).sort();
+  const digest = createHash("sha256").update([plan.id, plan.network, plan.mode, plan.fromEpoch, plan.toEpoch, previousRoot, nextRoot, plan.parameterSchemaSha256.toLowerCase(), plan.nextDeploymentSha256.toLowerCase(), ...validators, ...leaves.sort(), ...plan.governorApprovals.slice().sort()].join("|")).digest("hex");
   return { verified: true, digest, mode: plan.mode, stateCount: plan.state.length, toEpoch: plan.toEpoch };
 }

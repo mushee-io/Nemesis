@@ -28,23 +28,18 @@ export async function GET() {
         operatorPolicyVerified: flag(process.env.SYMBIOTIC_OPERATOR_POLICY_VERIFIED),
         incidentRecoveryConfigured: flag(process.env.SYMBIOTIC_INCIDENT_RECOVERY_CONFIGURED),
         preprodSoakPassed: flag(process.env.SYMBIOTIC_PREPROD_SOAK_PASSED),
+        stateTransitionBindingPassed: flag(process.env.SYMBIOTIC_STATE_TRANSITION_BINDING_PASSED),
+        oracleRoundIntegrityPassed: flag(process.env.SYMBIOTIC_ORACLE_ROUND_INTEGRITY_PASSED),
+        executionLeaseControlsPassed: flag(process.env.SYMBIOTIC_EXECUTION_LEASE_CONTROLS_PASSED),
+        exposureControlsPassed: flag(process.env.SYMBIOTIC_EXPOSURE_CONTROLS_PASSED),
+        canaryRollbackConfigured: flag(process.env.SYMBIOTIC_CANARY_ROLLBACK_CONFIGURED),
         dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
         securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
         emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
       }
     });
-    return NextResponse.json({
-      product: "Symbiotic",
-      gate: "hardened-preprod-release-v3",
-      generatedAt: new Date().toISOString(),
-      ...readiness
-    }, { status: readiness.ready ? 200 : 503 });
+    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v4", generatedAt: new Date().toISOString(), ...readiness }, { status: readiness.ready ? 200 : 503 });
   } catch (error) {
-    return NextResponse.json({
-      product: "Symbiotic",
-      gate: "hardened-preprod-release-v3",
-      ready: false,
-      error: error instanceof Error ? error.message : "Unable to evaluate readiness"
-    }, { status: 500 });
+    return NextResponse.json({ product: "Symbiotic", gate: "deep-preprod-release-v4", ready: false, error: error instanceof Error ? error.message : "Unable to evaluate readiness" }, { status: 500 });
   }
 }

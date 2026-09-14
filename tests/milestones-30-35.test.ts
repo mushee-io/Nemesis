@@ -53,50 +53,33 @@ test("operator quorum rejects unknown or duplicate signers and separates critica
 });
 
 test("incident controls allow fast tightening but delay recovery", () => {
-  const pause: IncidentReceipt = {
-    incidentId: "incident-001",
-    from: "NORMAL",
-    to: "PAUSED",
-    reasonHash: D64A,
-    activatedAt: "2026-09-14T09:00:00.000Z",
-    approvals: ["guardian-a"]
-  };
-  assert.equal(authorizeIncidentTransition({
-    receipt: pause,
-    guardianApprovals: ["guardian-a"],
-    governorApprovals: [],
-    guardianThreshold: 1,
-    governorThreshold: 2,
-    nowMs: new Date("2026-09-14T09:00:05.000Z").getTime()
-  }).path, "EMERGENCY");
+  const pause: IncidentReceipt = { incidentId: "incident-001", from: "NORMAL", to: "PAUSED", reasonHash: D64A, activatedAt: "2026-09-14T09:00:00.000Z", approvals: ["guardian-a"] };
+  assert.equal(authorizeIncidentTransition({ receipt: pause, guardianApprovals: ["guardian-a"], governorApprovals: [], guardianThreshold: 1, governorThreshold: 2, nowMs: new Date("2026-09-14T09:00:05.000Z").getTime() }).path, "EMERGENCY");
 
-  const recover: IncidentReceipt = {
-    incidentId: "incident-002",
-    from: "PAUSED",
-    to: "NORMAL",
-    reasonHash: D64B,
-    activatedAt: "2026-09-14T09:00:00.000Z",
-    recoverAfter: "2026-09-14T10:00:00.000Z",
-    approvals: ["gov-a", "gov-b"]
-  };
+  const recover: IncidentReceipt = { incidentId: "incident-002", from: "PAUSED", to: "NORMAL", reasonHash: D64B, activatedAt: "2026-09-14T09:00:00.000Z", recoverAfter: "2026-09-14T10:00:00.000Z", approvals: ["gov-a", "gov-b"] };
   assert.throws(() => authorizeIncidentTransition({ receipt: recover, guardianApprovals: [], governorApprovals: ["gov-a", "gov-b"], guardianThreshold: 1, governorThreshold: 2, nowMs: new Date("2026-09-14T09:30:00.000Z").getTime() }), /delay/);
   assert.equal(authorizeIncidentTransition({ receipt: recover, guardianApprovals: [], governorApprovals: ["gov-a", "gov-b"], guardianThreshold: 1, governorThreshold: 2, nowMs: new Date("2026-09-14T10:01:00.000Z").getTime() }).path, "RECOVERY");
 });
 
 test("preprod soak requires sustained healthy samples", () => {
+  const now = new Date("2026-09-14T14:00:00.000Z").getTime();
   const start = new Date("2026-09-14T08:00:00.000Z").getTime();
-  const samples = Array.from({ length: 7 }, (_, index) => ({
-    timestamp: new Date(start + index * 10 * 60 * 1000).toISOString(),
+  const samples = Array.from({ length: 13 }, (_, index) => ({
+    timestamp: new Date(start + index * 30 * 60 * 1000).toISOString(),
     readinessPassed: true,
     providerLagSlots: 2,
     indexerLagSlots: 4,
     oracleSourceCount: 3,
-    failedTxRateBps: 25
+    failedTxRateBps: 25,
+    p95ConfirmationMs: 45_000,
+    chainTipAgeMs: 20_000,
+    reorgDepth: 0,
+    criticalIncidents: 0
   }));
-  const result = evaluatePreprodSoak(samples);
+  const result = evaluatePreprodSoak(samples, undefined, now);
   assert.equal(result.passed, true);
-  assert.equal(result.sampleCount, 7);
+  assert.equal(result.sampleCount, 13);
 
   const degraded = samples.map((sample, index) => index === 3 ? { ...sample, oracleSourceCount: 1 } : sample);
-  assert.throws(() => evaluatePreprodSoak(degraded), /Oracle quorum degraded/);
+  assert.throws(() => evaluatePreprodSoak(degraded, undefined, now), /Oracle quorum degraded/);
 });

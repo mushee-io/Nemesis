@@ -55,11 +55,14 @@ validator options(
         datum.settled == 0 || datum.settled == 1,
         if datum.settled == 0 { datum.settlement_price == 0 } else { datum.settlement_price > 0 },
       }
+    let continuation_count =
+      list.count(self.outputs, fn(output) { output.address == own_input.output.address })
 
     when redeemer is {
       AddCollateral(amount) -> {
         expect amount > 0
         expect datum.settled == 0
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,
@@ -97,6 +100,7 @@ validator options(
         expect settlement_price > 0
         expect attested_at_ms >= datum.expiry_ms
         expect datum.settled == 0
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,
@@ -142,6 +146,7 @@ validator options(
           valid_series,
           datum.settled == 1,
           datum.settlement_price > 0,
+          continuation_count == 0,
           self.validity_range |> interval.is_entirely_after(datum.expiry_ms),
         }
       }

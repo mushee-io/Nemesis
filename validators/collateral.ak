@@ -32,11 +32,14 @@ validator collateral(collateral_policy: PolicyId, collateral_asset: AssetName) {
     let input_units =
       assets.quantity_of(own_input.output.value, collateral_policy, collateral_asset)
     let input_state_is_backed = datum.balance >= 0 && datum.balance == input_units
+    let continuation_count =
+      list.count(self.outputs, fn(output) { output.address == own_input.output.address })
 
     when redeemer is {
-      EmergencyExit -> signed_by_owner && input_state_is_backed
+      EmergencyExit -> signed_by_owner && input_state_is_backed && continuation_count == 0
       Deposit(amount) -> {
         expect amount > 0
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,
@@ -66,6 +69,7 @@ validator collateral(collateral_policy: PolicyId, collateral_asset: AssetName) {
       Withdraw(amount) -> {
         expect amount > 0
         expect datum.balance >= amount
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,

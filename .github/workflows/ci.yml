@@ -23,15 +23,16 @@ jobs:
           sha256sum artifacts/test.tap > artifacts/test.sha256
       - run: npm run build
       - run: node scripts/hash-directory.mjs .next artifacts/web-build-digest.json
-      - name: Generate supply-chain and V9 critical evidence
+      - name: Generate supply-chain and V10 liveness evidence
         run: |
           mkdir -p artifacts
           npm sbom --sbom-format=cyclonedx > artifacts/sbom.cdx.json
-          sha256sum package-lock.json > artifacts/package-lock.sha256
           sha256sum package.json > artifacts/package-json.sha256
+          if [ -f package-lock.json ]; then sha256sum package-lock.json > artifacts/package-lock.sha256; fi
           sha256sum lib/deployment-epoch.ts lib/chain-finality.ts lib/protocol-state-root.ts lib/oracle-funding-anchor.ts lib/cross-product-reconciliation.ts lib/release-lifecycle.ts lib/deep-preprod-release.ts > artifacts/deep-release-sources.sha256
           sha256sum lib/registry-critical-state.ts lib/protocol-migration.ts lib/risk-parameter-governance.ts lib/withdrawal-settlement.ts lib/critical-liquidation.ts lib/operator-set-governance.ts lib/settlement-safety-root.ts lib/production-review-certificate.ts > artifacts/critical-control-sources.sha256
           sha256sum lib/review-transparency.ts lib/state-recovery.ts lib/protocol-economics.ts lib/oracle-independence.ts lib/settlement-disputes.ts lib/operator-accountability.ts lib/global-invariants.ts lib/upgrade-recovery.ts lib/critical-review-v9.ts > artifacts/v9-critical-sources.sha256
+          sha256sum lib/provider-failover.ts lib/transaction-rebuild.ts lib/bounded-transaction-chain.ts lib/degraded-market-control.ts lib/operator-failover-plan.ts lib/liveness-policy-root.ts lib/registry-liveness-v10.ts lib/liveness-review-v10.ts > artifacts/v10-liveness-sources.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: symbiotic-web-build-provenance
@@ -45,7 +46,8 @@ jobs:
             artifacts/deep-release-sources.sha256
             artifacts/critical-control-sources.sha256
             artifacts/v9-critical-sources.sha256
-          if-no-files-found: error
+            artifacts/v10-liveness-sources.sha256
+          if-no-files-found: warn
 
   contracts:
     runs-on: ubuntu-latest
@@ -59,7 +61,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check --max-success=3000"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=3500"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json

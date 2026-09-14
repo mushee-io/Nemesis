@@ -21,6 +21,10 @@ export default function StatusPage() {
       validatorArtifactsPinned: flag(process.env.SYMBIOTIC_VALIDATOR_ARTIFACTS_PINNED),
       validatorDeploymentsBound: flag(process.env.SYMBIOTIC_VALIDATOR_DEPLOYMENTS_BOUND),
       e2eLifecyclePassed: flag(process.env.SYMBIOTIC_E2E_LIFECYCLE_PASSED),
+      releaseProvenanceVerified: flag(process.env.SYMBIOTIC_RELEASE_PROVENANCE_VERIFIED),
+      operatorPolicyVerified: flag(process.env.SYMBIOTIC_OPERATOR_POLICY_VERIFIED),
+      incidentRecoveryConfigured: flag(process.env.SYMBIOTIC_INCIDENT_RECOVERY_CONFIGURED),
+      preprodSoakPassed: flag(process.env.SYMBIOTIC_PREPROD_SOAK_PASSED),
       dependencyAuditReviewed: flag(process.env.SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED),
       securityContactConfigured: Boolean(process.env.SYMBIOTIC_SECURITY_CONTACT?.trim()),
       emergencyRunbookConfigured: Boolean(process.env.SYMBIOTIC_EMERGENCY_RUNBOOK_URL?.trim())
@@ -29,12 +33,12 @@ export default function StatusPage() {
 
   return (
     <main style={{ minHeight: "100vh", padding: "48px", background: "#080808", color: "#f4f4ef", fontFamily: "Arial, Helvetica, sans-serif" }}>
-      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / ONCHAIN RELEASE GATE</p>
+      <p style={{ letterSpacing: ".14em", color: "#818181", fontSize: 11 }}>SYMBIOTIC / HARDENED PREPROD RELEASE GATE</p>
       <h1 style={{ fontSize: 54, margin: "18px 0 10px" }}>{readiness.ready ? "RELEASE READY" : "FAIL CLOSED"}</h1>
-      <p style={{ color: "#999", maxWidth: 820, lineHeight: 1.6 }}>This page only reports release-ready when Cardano infrastructure, compiled Aiken validators, verified blueprint artifacts, bound deployments, confirmed end-to-end lifecycle evidence, security tests and emergency-response requirements all pass.</p>
+      <p style={{ color: "#999", maxWidth: 900, lineHeight: 1.6 }}>Symbiotic only reports release-ready when Cardano infrastructure, all four compiled validators, deployment fingerprints, lifecycle receipts, build provenance, operator separation, incident recovery controls and a sustained Preprod soak all pass together.</p>
       <div style={{ marginTop: 36, border: "1px solid #262626" }}>
         {readiness.checks.map((check) => (
-          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "240px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
+          <div key={check.id} style={{ display: "grid", gridTemplateColumns: "260px 100px 1fr", gap: 20, padding: 16, borderBottom: "1px solid #262626", alignItems: "center" }}>
             <strong>{check.id}</strong>
             <span style={{ color: check.ready ? "#e8ff47" : "#ff6161" }}>{check.ready ? "READY" : "MISSING"}</span>
             <span style={{ color: "#818181" }}>{check.detail}</span>

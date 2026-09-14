@@ -25,8 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g @aiken-lang/aikup
-      - run: aikup v1.1.22
+      - run: npm install -g @aiken-lang/aiken@1.1.22
       - run: aiken --version
       - run: aiken check
       - run: aiken build

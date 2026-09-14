@@ -30,15 +30,7 @@ test("transaction firewall rejects excessive fees and unknown outputs", () => {
       txBodyHash: DIGEST
     }
   };
-  const policy = {
-    account: ACCOUNT,
-    network: "preprod" as const,
-    allowedActions: ["OPEN_PERP" as const],
-    allowedScriptHashes: [SCRIPT_HASH],
-    allowedOutputAddresses: [VALIDATOR],
-    expectedChangeAddress: ACCOUNT,
-    maxFeeLovelace: 600000n
-  };
+  const policy = { account: ACCOUNT, network: "preprod" as const, allowedActions: ["OPEN_PERP" as const], allowedScriptHashes: [SCRIPT_HASH], allowedOutputAddresses: [VALIDATOR], expectedChangeAddress: ACCOUNT, maxFeeLovelace: 600000n };
   assert.equal(validateTransactionFirewall({ prepared, policy }), true);
   assert.throws(() => validateTransactionFirewall({ prepared: { ...prepared, summary: { ...prepared.summary, feeLovelace: "900000" } }, policy }), /fee exceeds/);
   assert.throws(() => validateTransactionFirewall({ prepared: { ...prepared, summary: { ...prepared.summary, outputs: [{ address: `addr_test1${"e".repeat(40)}`, lovelace: "1" }] } }, policy }), /unapproved output/);
@@ -53,13 +45,7 @@ test("oracle circuit breaker rejects abrupt price jumps", () => {
 });
 
 test("market risk limits enforce leverage, OI, skew and insurance floors", () => {
-  const limits = {
-    maxOpenInterestUsd: 1_000_000,
-    maxSkewUsd: 400_000,
-    maxPositionUsd: 250_000,
-    leverageTiers: [{ maxNotionalUsd: 25_000, maxLeverage: 20 }, { maxNotionalUsd: 100_000, maxLeverage: 10 }, { maxNotionalUsd: 250_000, maxLeverage: 5 }],
-    minInsuranceFundUsd: 100_000
-  };
+  const limits = { maxOpenInterestUsd: 1_000_000, maxSkewUsd: 400_000, maxPositionUsd: 250_000, leverageTiers: [{ maxNotionalUsd: 25_000, maxLeverage: 20 }, { maxNotionalUsd: 100_000, maxLeverage: 10 }, { maxNotionalUsd: 250_000, maxLeverage: 5 }], minInsuranceFundUsd: 100_000 };
   assert.equal(validateMarketAdmission({ side: "LONG", positionNotionalUsd: 20_000, leverage: 10, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 }, limits }).allowed, true);
   assert.throws(() => validateMarketAdmission({ side: "LONG", positionNotionalUsd: 150_000, leverage: 10, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 200_000 }, limits }), /Leverage exceeds/);
   assert.throws(() => validateMarketAdmission({ side: "LONG", positionNotionalUsd: 20_000, leverage: 5, state: { longOpenInterestUsd: 100_000, shortOpenInterestUsd: 90_000, insuranceFundUsd: 50_000 }, limits }), /reduce-only/);
@@ -80,7 +66,7 @@ test("governance timelock and emergency roles fail closed", () => {
   assert.throws(() => assertActionAllowed("REDUCE_ONLY", "OPEN_PERP"), /disabled/);
 });
 
-test("release gate requires hardened milestones 30-35 and explicit mainnet enable", () => {
+test("release gate requires deep milestones 35-40 and explicit mainnet enable", () => {
   const manifest = {
     network: "mainnet" as const,
     providerEndpoint: "https://provider.example",
@@ -107,11 +93,16 @@ test("release gate requires hardened milestones 30-35 and explicit mainnet enabl
     operatorPolicyVerified: true,
     incidentRecoveryConfigured: true,
     preprodSoakPassed: true,
+    stateTransitionBindingPassed: true,
+    oracleRoundIntegrityPassed: true,
+    executionLeaseControlsPassed: true,
+    exposureControlsPassed: true,
+    canaryRollbackConfigured: true,
     dependencyAuditReviewed: true,
     securityContactConfigured: true,
     emergencyRunbookConfigured: true
   };
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: false }).ready, false);
   assert.equal(evaluateReleaseGate({ manifest, evidence, allowMainnet: true }).ready, true);
-  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, preprodSoakPassed: false }, allowMainnet: true }).ready, false);
+  assert.equal(evaluateReleaseGate({ manifest, evidence: { ...evidence, stateTransitionBindingPassed: false }, allowMainnet: true }).ready, false);
 });

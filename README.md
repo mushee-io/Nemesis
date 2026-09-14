@@ -1,101 +1,104 @@
 # Symbiotic
 
-Symbiotic is a Cardano-native derivatives venue focused on three products:
+Symbiotic is a Cardano-native derivatives venue focused on:
 
 1. **Perpetual Markets** — leveraged long/short markets, advanced orders, funding, margin, liquidation and portfolio risk.
 2. **Options** — European calls and puts with model pricing, Greeks, fully-collateralized writing and deterministic expiry settlement.
 3. **Notional Market** — confidential pre-trade intent designed to keep direction, size and limit price out of public order flow before matching.
 
-The repository is intentionally fail-closed: deterministic calculations may run before testnet deployment, but Symbiotic does not present a transaction as settled until a real Cardano transaction is signed, assembled, submitted and confirmed.
+The repository is intentionally fail-closed. Preview calculations are never treated as authoritative settlement, and the public readiness surfaces remain unavailable until real Cardano infrastructure and security evidence are configured.
 
-## Milestones 6–10
+## Milestones 11–14
 
-Implemented before this phase:
+The previous execution phase introduced:
 
-- advanced perpetual market/limit/stop/take-profit validation
-- leverage limits, maker/taker fees and funding calculations
-- fully-collateralized options and deterministic expiry settlement math
-- Notional commitments with chain binding, expiry, slippage, nonce and replay controls
-- unified portfolio health and partial-liquidation sizing
-- oracle freshness/confidence/deviation guards
-- typed protocol intents, RFQ validation and inventory-aware market-maker quoting
+- CIP-30 network enforcement and wallet witness signing
+- backend prepared transaction / assembly boundaries
+- replay-safe transaction requests
+- oracle quorum and chain/indexer state
+- expiry-only options settlement authorization
+- liquidation keeper authorization
+- off-chain collateral/perpetual validator transition mirrors
 
-## Milestones 11–15
+## Hardened Milestones 15–20
 
-### Milestone 11 — Cardano execution boundary
+### Milestone 15 — Release/readiness v2
 
-- CIP-30 network enforcement
-- prepared transaction schema with request ID, network, expiry and intent hash
-- unsigned CBOR validation
-- wallet witness signing using `signTx(..., true)`
-- trusted backend assembly of unsigned transaction + witness set
-- wallet submission of the final signed CBOR
-- one-time transaction request registry to prevent accidental replay
-- server-side transaction builder client and `/api/cardano/prepare` + `/api/cardano/assemble` routes
+- readiness upgraded from infrastructure-only checks to a hardened release gate
+- protocol, execution and hardening test evidence required
+- validator artifacts must be pinned before release
+- dependency-audit review required
+- security contact and emergency runbook required
+- mainnet is blocked unless explicitly enabled at release time
 
-Symbiotic never treats the witness set returned by a wallet as a complete signed transaction.
+### Milestone 16 — Transaction firewall
 
-### Milestone 12 — Oracle quorum and chain indexer
+- hardened prepared-transaction summaries
+- action/account/network binding
+- validator script allowlists
+- output-address allowlists
+- expected change-address enforcement
+- maximum transaction fee cap
+- maximum output-count cap
+- builder action/account summary must match the original request
 
-- independent named oracle sources
-- stale/confidence filtering
-- median-based quorum aggregation
-- divergence rejection
-- minimum-source requirements
-- indexed transaction states
-- protocol-event reducer
-- event deduplication
-- monotonic slot enforcement
-- transaction-confirmation provider interface
+The hardened builder path is additive: `prepareHardened` can be required for production without breaking the existing development interface.
 
-### Milestone 13 — Options lifecycle authorization
+### Milestone 17 — Oracle circuit breaker
 
-- canonical option settlement IDs
-- ACTIVE / EXPIRED_UNSETTLED / SETTLED lifecycle states
-- settlement only after expiry
-- settlement price sourced from oracle quorum
-- deterministic payout calculation
-- one-time settlement registry
-- oracle-source attribution in settlement records
+- existing fresh multi-source quorum retained
+- abrupt price-jump rejection
+- source-set continuity checks
+- rolling TWAP calculation
+- maximum quorum-vs-TWAP deviation guard
+- anomalous prices fail closed instead of flowing into liquidation/settlement decisions
 
-### Milestone 14 — Liquidation keepers and validator mirrors
+### Milestone 18 — Market risk + insurance controls
 
-- keeper jobs only for liquidatable positions
-- oracle quorum required at liquidation time
-- mark/oracle deviation guard
-- bounded partial-liquidation sizing
-- short-lived keeper jobs
-- replay-safe keeper registry
-- off-chain validator transition mirrors for collateral and perpetual state
-- signer, identity and nonce invariants
+- total open-interest cap
+- directional skew cap
+- per-position notional cap
+- notional-based leverage tiers
+- automatic reduce-only condition when insurance reserves fall below a configured floor
+- insurance-loss accounting
+- explicit bad-debt calculation
+- deterministic ADL candidate ranking foundation
 
-The validator mirrors are not a substitute for compiled Cardano validators; they define the state-transition rules the on-chain validators must enforce.
+### Milestone 19 — Emergency governance
 
-### Milestone 15 — Testnet readiness gate
+- NORMAL / REDUCE_ONLY / SETTLEMENT_ONLY / PAUSED modes
+- per-mode action allowlists
+- governor-only timelocked configuration proposals
+- payload-hash binding
+- proposal expiry
+- guardian may tighten emergency mode immediately
+- guardian cannot unpause/relax emergency state without governor authority
 
-- environment-driven deployment manifest
-- provider readiness
-- indexer readiness
-- transaction-builder readiness
-- minimum two-source oracle quorum readiness
-- required collateral/perpetual/options validator address + script-hash checks
-- `/api/readiness` machine-readable health endpoint
-- `/status` human-readable deployment dashboard
-- testnet state remains **FAIL CLOSED** until every required dependency is configured
+### Milestone 20 — Security/release gate
 
-## Cardano architecture
+- adversarial hardening test suite
+- critical dependency audit in CI
+- browser security headers
+- anti-framing policy
+- restrictive referrer/permissions policies
+- explicit production evidence requirements
+- package version bumped to `0.4.0`
 
-The browser connects through CIP-30. A trusted backend transaction builder constructs unsigned CBOR. The wallet produces witnesses. The trusted assembler combines the transaction body with the witness set. The wallet then submits the final signed transaction. Chain/indexer confirmation becomes the authoritative application state.
+## Cardano execution architecture
 
-This follows the Cardano dApp split of wallet connection/signing plus provider-backed transaction construction/submission rather than exposing signing keys or pretending frontend state is settlement.
+The browser connects through CIP-30. A trusted backend transaction builder constructs unsigned CBOR. The wallet signs the transaction body and returns witnesses. A trusted assembler combines the unsigned transaction with the witness set. The final signed transaction is then submitted and the indexer/chain confirmation becomes authoritative application state.
+
+For hardened production mode, the builder response must additionally include a transaction summary that passes Symbiotic's transaction firewall before wallet signing/submission.
 
 ## Current on-chain boundary
 
-The execution pipeline and validation rules are now implemented in TypeScript, but **compiled and deployed collateral, perpetual and options validators are still required** before Symbiotic can be considered live on Cardano testnet.
+**Compiled and independently reviewed Cardano validators are still required before Symbiotic should be considered live on testnet or mainnet.** The TypeScript validator mirrors, execution firewall and release gates are defense-in-depth controls; they do not replace on-chain validation.
 
-The `/status` and `/api/readiness` surfaces will remain not-ready until those validator script hashes/addresses and the provider, indexer, builder and oracle sources are configured.
+The hardened readiness gate therefore remains fail-closed until deployed validator addresses/hashes, provider/indexer/builder endpoints, oracle sources, pinned validator artifacts and release-security evidence are configured.
 
 ## Environment
+
+Core deployment variables:
 
 ```bash
 SYMBIOTIC_CARDANO_NETWORK=preprod
@@ -113,27 +116,37 @@ SYMBIOTIC_OPTIONS_VALIDATOR_ADDRESS=addr_test1...
 SYMBIOTIC_OPTIONS_VALIDATOR_HASH=...
 ```
 
-## Local development
+Hardened release evidence:
+
+```bash
+SYMBIOTIC_PROTOCOL_TESTS_PASSED=true
+SYMBIOTIC_EXECUTION_TESTS_PASSED=true
+SYMBIOTIC_HARDENING_TESTS_PASSED=true
+SYMBIOTIC_VALIDATOR_ARTIFACTS_PINNED=true
+SYMBIOTIC_DEPENDENCY_AUDIT_REVIEWED=true
+SYMBIOTIC_SECURITY_CONTACT=security@example.com
+SYMBIOTIC_EMERGENCY_RUNBOOK_URL=https://...
+SYMBIOTIC_ALLOW_MAINNET=false
+```
+
+`SYMBIOTIC_ALLOW_MAINNET` should remain false until an explicit reviewed mainnet release.
+
+## Quality gates
 
 ```bash
 npm install
-npm run dev
-```
-
-Quality gates:
-
-```bash
+npm audit --audit-level=critical
 npm run typecheck
 npm test
 npm run build
 ```
 
-## Next on-chain work
+## Remaining on-chain work
 
-1. write/compile the collateral, perpetual and options validators in Aiken
-2. run validator property/invariant tests
-3. deploy validators to Cardano Preview or Preprod
-4. connect a real transaction-building provider to the server-side builder interface
-5. connect live independent oracle sources
-6. run end-to-end wallet → prepare → sign → assemble → submit → index → confirm tests
-7. security review before any mainnet deployment
+1. write and compile collateral/perpetual/options validators in Aiken
+2. property/invariant-test the compiled validators
+3. pin generated CIP-0057 blueprint artifacts and script hashes to a release
+4. deploy first to Preview/Preprod
+5. connect real independent oracle feeds and transaction provider
+6. run end-to-end wallet → firewall → sign → assemble → submit → index → confirm scenarios
+7. external security review before any mainnet enablement

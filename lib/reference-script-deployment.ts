@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { CardanoNetwork } from "./cardano-execution";
 import type { BuilderRequest } from "./transaction-builder";
 import {
+  assertReferenceScriptDeployed,
   canonicalUtxoRef,
   validateCardanoConfirmation,
   type CardanoConfirmationProof,
@@ -119,8 +120,14 @@ export function validateReferenceScriptDeploymentReceipt(input: {
     ...input.policy,
     expectedNetwork: receipt.network
   }, nowMs);
-  const reference = canonicalUtxoRef({ txHash: confirmation.txHash, outputIndex: receipt.outputIndex });
+  const expectedReference = { txHash: confirmation.txHash, outputIndex: receipt.outputIndex };
+  const reference = canonicalUtxoRef(expectedReference);
   if (!confirmation.outputRefs.includes(reference)) throw new Error("Reference-script UTxO is not present in confirmed deployment outputs");
+  assertReferenceScriptDeployed({
+    confirmation: receipt.confirmation,
+    expectedReference,
+    expectedScriptHash: receipt.appliedScriptHash
+  });
   return {
     verified: true,
     title: receipt.title,

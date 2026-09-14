@@ -14,8 +14,10 @@ import {
 } from "../lib/options";
 import {
   createIntentCommitment,
+  createIntentRevealPreimage,
   NonceRegistry,
   randomSalt,
+  validateNotionalFill,
   verifyIntentReveal,
   type HiddenIntent
 } from "../lib/notional";
@@ -75,20 +77,33 @@ test("options engine handles collateral and expiry settlement", () => {
   assert.equal(result.payout, 10_000);
 });
 
-test("Notional commitments verify and nonce registry rejects replay", async () => {
+test("Notional commitment preimage matches the onchain SHA-256 reveal model", async () => {
+  const nowMs = Date.now();
   const intent: HiddenIntent = {
     market: "BTC-USD",
     side: "BUY",
     size: "1",
     limitPrice: "60000",
-    expiry: new Date(Date.now() + 60_000).toISOString(),
+    expiry: new Date(nowMs + 60_000).toISOString(),
     nonce: "0123456789abcdef0123456789abcdef",
     chainId: "cardano-preprod",
     maxSlippageBps: 50
   };
   const salt = randomSalt();
   const commitment = await createIntentCommitment(intent, salt);
+  const preimage = createIntentRevealPreimage(intent, salt);
+  assert.match(preimage, /^[0-9a-f]+$/);
   assert.equal(await verifyIntentReveal({ intent, salt, commitment }), true);
+  assert.equal(await validateNotionalFill({
+    reveal: { intent, salt, commitment },
+    executionPrice: 60_250,
+    nowMs
+  }), true);
+  await assert.rejects(() => validateNotionalFill({
+    reveal: { intent, salt, commitment },
+    executionPrice: 61_000,
+    nowMs
+  }), /violates committed bounds/);
 
   const registry = new NonceRegistry();
   registry.consume(intent.nonce);

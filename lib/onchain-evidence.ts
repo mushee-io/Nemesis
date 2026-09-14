@@ -38,6 +38,22 @@ export type E2EExecutionEvidence = {
   network: CardanoNetwork;
 };
 
+export const REQUIRED_VALIDATOR_TITLES = [
+  "collateral.collateral.spend",
+  "perpetual.perpetual.spend",
+  "options.options.spend",
+  "notional.notional.spend"
+] as const;
+
+export const REQUIRED_PREPROD_ACTIONS = [
+  "DEPOSIT_COLLATERAL",
+  "OPEN_PERP",
+  "CLOSE_PERP",
+  "LIQUIDATE",
+  "SETTLE_OPTION",
+  "SETTLE_NOTIONAL"
+] as const;
+
 function hash64(value: string, label: string) {
   if (!/^[0-9a-f]{64}$/i.test(value)) throw new Error(`${label} must be a 32-byte hex digest`);
 }
@@ -54,8 +70,7 @@ export function validateArtifactManifest(manifest: ValidatorArtifactManifest) {
   if (manifest.schemaVersion !== 1) throw new Error("Unsupported validator artifact schema");
   if (manifest.plutusVersion !== "v3") throw new Error("Symbiotic requires Plutus V3 validators");
   hash64(manifest.blueprintSha256, "Blueprint SHA-256");
-  const required = ["collateral.collateral.spend", "perpetual.perpetual.spend", "options.options.spend"];
-  for (const title of required) {
+  for (const title of REQUIRED_VALIDATOR_TITLES) {
     const artifact = manifest.validators.find((candidate) => candidate.title === title);
     if (!artifact) throw new Error(`Missing validator artifact ${title}`);
     hash64(artifact.compiledCodeSha256, `${title} compiled code SHA-256`);
@@ -71,8 +86,7 @@ export function bindDeploymentEvidence(input: {
   network: CardanoNetwork;
 }) {
   validateArtifactManifest(input.manifest);
-  const requiredTitles = ["collateral.collateral.spend", "perpetual.perpetual.spend", "options.options.spend"];
-  const bound = requiredTitles.map((title) => {
+  const bound = REQUIRED_VALIDATOR_TITLES.map((title) => {
     const artifact = input.manifest.validators.find((candidate) => candidate.title === title);
     const deployment = input.deployments.find((candidate) => candidate.title === title);
     if (!artifact || !deployment) throw new Error(`Missing deployment evidence for ${title}`);
@@ -114,7 +128,7 @@ export function evaluateE2EReleaseEvidence(input: {
   executions: E2EExecutionEvidence[];
   requiredActions?: string[];
 }) {
-  const requiredActions = input.requiredActions ?? ["DEPOSIT_COLLATERAL", "OPEN_PERP", "CLOSE_PERP", "SETTLE_OPTION"];
+  const requiredActions = input.requiredActions ?? [...REQUIRED_PREPROD_ACTIONS];
   const validated = input.executions.map((evidence) => validateE2EEvidence(evidence, input.network));
   const requestIds = new Set<string>();
   const txHashes = new Set<string>();

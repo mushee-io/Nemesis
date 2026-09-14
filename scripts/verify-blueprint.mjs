@@ -9,7 +9,8 @@ if (!Array.isArray(blueprint.validators)) throw new Error("Blueprint validators 
 const required = [
   { module: "collateral", validator: "collateral" },
   { module: "perpetual", validator: "perpetual" },
-  { module: "options", validator: "options" }
+  { module: "options", validator: "options" },
+  { module: "notional", validator: "notional" }
 ];
 
 const manifest = [];
@@ -27,7 +28,8 @@ for (const expected of required) {
     title: match.title,
     hash: match.hash ?? null,
     compiledCodeSha256: crypto.createHash("sha256").update(match.compiledCode.toLowerCase()).digest("hex"),
-    compiledBytes: match.compiledCode.length / 2
+    compiledBytes: match.compiledCode.length / 2,
+    parameterized: Array.isArray(match.parameters) && match.parameters.length > 0
   });
 }
 

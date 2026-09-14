@@ -63,15 +63,24 @@ function canonical(intent: HiddenIntent) {
   });
 }
 
+function revealPreimage(intent: HiddenIntent, salt: string) {
+  if (!/^[0-9a-f]{64}$/i.test(salt)) throw new Error("Salt must be 32 random bytes encoded as hex");
+  return `${canonical(intent)}:${salt.toLowerCase()}`;
+}
+
 async function sha256(value: string) {
   const encoded = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", encoded);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+export function createIntentRevealPreimage(intent: HiddenIntent, salt: string) {
+  const encoded = new TextEncoder().encode(revealPreimage(intent, salt));
+  return Array.from(encoded, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function createIntentCommitment(intent: HiddenIntent, salt: string) {
-  if (!/^[0-9a-f]{64}$/i.test(salt)) throw new Error("Salt must be 32 random bytes encoded as hex");
-  return sha256(`${canonical(intent)}:${salt.toLowerCase()}`);
+  return sha256(revealPreimage(intent, salt));
 }
 
 export async function verifyIntentReveal(reveal: NotionalReveal) {
@@ -92,6 +101,25 @@ export function calculateBoundedExecution(input: {
   return input.side === "BUY"
     ? { minPrice: 0, maxPrice: input.limitPrice * (1 + tolerance) }
     : { minPrice: input.limitPrice * (1 - tolerance), maxPrice: Number.POSITIVE_INFINITY };
+}
+
+export async function validateNotionalFill(input: {
+  reveal: NotionalReveal;
+  executionPrice: number;
+  nowMs?: number;
+}) {
+  validateHiddenIntent(input.reveal.intent, input.nowMs ?? Date.now());
+  if (!(await verifyIntentReveal(input.reveal))) throw new Error("Notional reveal does not match commitment");
+  if (!Number.isFinite(input.executionPrice) || input.executionPrice <= 0) throw new Error("Invalid Notional execution price");
+  const bounds = calculateBoundedExecution({
+    side: input.reveal.intent.side,
+    limitPrice: Number(input.reveal.intent.limitPrice),
+    maxSlippageBps: input.reveal.intent.maxSlippageBps
+  });
+  if (input.executionPrice < bounds.minPrice || input.executionPrice > bounds.maxPrice) {
+    throw new Error("Notional execution price violates committed bounds");
+  }
+  return true;
 }
 
 export class NonceRegistry {

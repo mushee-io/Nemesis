@@ -40,7 +40,7 @@ function validCardanoAddress(value?: string) {
 }
 
 export function evaluateDeploymentReadiness(manifest: SymbioticDeploymentManifest) {
-  const requiredValidators: ValidatorDeployment["name"][] = ["collateral", "perpetual", "options"];
+  const requiredValidators: ValidatorDeployment["name"][] = ["collateral", "perpetual", "options", "notional"];
   const checks: ReadinessCheck[] = [
     {
       id: "provider",

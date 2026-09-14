@@ -48,12 +48,15 @@ validator perpetual(
         datum.nonce >= 0,
         valid_risk_parameter,
       }
+    let continuation_count =
+      list.count(self.outputs, fn(output) { output.address == own_input.output.address })
 
     when redeemer is {
-      Close -> signed_by_owner && valid_base
+      Close -> signed_by_owner && valid_base && continuation_count == 0
       Increase(size_delta, collateral_delta) -> {
         expect size_delta > 0
         expect collateral_delta >= 0
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,
@@ -83,6 +86,7 @@ validator perpetual(
       Reduce(size_delta) -> {
         expect size_delta > 0
         expect size_delta < datum.size_usd
+        expect continuation_count == 1
         expect Some(next_output) =
           list.find(
             self.outputs,
@@ -114,6 +118,7 @@ validator perpetual(
         expect attested_at_ms > 0
         and {
           valid_base,
+          continuation_count == 0,
           signed_by_oracle,
           self.validity_range |> interval.contains(attested_at_ms),
           is_liquidatable(

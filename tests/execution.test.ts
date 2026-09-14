@@ -34,11 +34,11 @@ test("prepared Cardano execution signs witnesses, assembles and submits once", a
   const wallet: Cip30WalletApi = {
     async getNetworkId() { return 0; },
     async getChangeAddress() { return "00"; },
-    async getUtxOs() { return []; },
+    async getUtxos() { return []; },
     async getBalance() { return "00"; },
     async signTx(tx) { calls.push(`sign:${tx}`); return "a101"; },
     async submitTx(tx) { calls.push(`submit:${tx}`); return HASH_B; }
-  } as Cip30WalletApi;
+  };
   const registry = new TransactionRequestRegistry();
   const tx = prepared();
   const receipt = await executePreparedTransaction({
@@ -64,14 +64,14 @@ test("prepared Cardano execution signs witnesses, assembles and submits once", a
 
 test("prepared transactions fail closed on expiry and network mismatch", async () => {
   assert.throws(() => validatePreparedTransaction(prepared(), 2_000_000), /expired/);
-  const wallet = {
+  const wallet: Cip30WalletApi = {
     async getNetworkId() { return 1; },
     async getChangeAddress() { return "00"; },
-    async getUtxOs() { return []; },
+    async getUtxos() { return []; },
     async getBalance() { return "00"; },
     async signTx() { return "a101"; },
     async submitTx() { return HASH_B; }
-  } as unknown as Cip30WalletApi;
+  };
   await assert.rejects(() => executePreparedTransaction({
     api: wallet,
     prepared: prepared(),

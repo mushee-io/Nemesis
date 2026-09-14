@@ -89,8 +89,13 @@ function txHash(index: number) {
   return index.toString(16).padStart(64, "0");
 }
 
-function confirmation(index: number, referenceInputRefs: Array<{ txHash: string; outputIndex: number }> = []): CardanoConfirmationProof {
+function confirmation(
+  index: number,
+  referenceInputRefs: Array<{ txHash: string; outputIndex: number }> = [],
+  deployedScriptHash?: string
+): CardanoConfirmationProof {
   const hash = txHash(index);
+  const output = { txHash: hash, outputIndex: 0 };
   return {
     network: "preprod",
     txHash: hash,
@@ -102,8 +107,9 @@ function confirmation(index: number, referenceInputRefs: Array<{ txHash: string;
     tipSlot: 10_010 + index,
     observedAt: new Date(NOW - 30_000).toISOString(),
     inputRefs: [{ txHash: txHash(index + 200), outputIndex: 0 }],
-    outputRefs: [{ txHash: hash, outputIndex: 0 }],
-    referenceInputRefs
+    outputRefs: [output],
+    referenceInputRefs,
+    referenceScripts: deployedScriptHash ? [{ ref: output, scriptHash: deployedScriptHash }] : []
   };
 }
 
@@ -138,7 +144,7 @@ function referenceReceipts(instances = parameterizedInstances()): ReferenceScrip
     parameterDigest: instance.parameterDigest,
     appliedScriptHash: instance.appliedScriptHash,
     outputIndex: 0,
-    confirmation: confirmation(index + 1)
+    confirmation: confirmation(index + 1, [], instance.appliedScriptHash)
   }));
 }
 
@@ -260,6 +266,19 @@ test("milestone 51 binds all four applied validators to confirmed reference-scri
     policy: confirmationPolicy,
     nowMs: NOW
   }), /hash mismatch/);
+
+  const wrongOnChain = referenceReceipts(instances);
+  wrongOnChain[0] = {
+    ...wrongOnChain[0],
+    confirmation: confirmation(1, [], H56B)
+  };
+  assert.throws(() => validateReferenceScriptDeploymentBundle({
+    receipts: wrongOnChain,
+    expected: instances.map((instance) => ({ title: instance.title, parameterDigest: instance.parameterDigest, appliedScriptHash: instance.appliedScriptHash })),
+    network: "preprod",
+    policy: confirmationPolicy,
+    nowMs: NOW
+  }), /reference-script hash/);
 });
 
 test("milestones 52-54 require conserved funding/options and limit-safe competitive Notional execution", () => {

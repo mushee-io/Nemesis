@@ -22,6 +22,18 @@ export type RollbackManifest = {
   generatedAt: string;
 };
 
+export type RollbackDrill = {
+  network: CardanoNetwork;
+  detectedAt: string;
+  rollbackStartedAt: string;
+  rollbackCompletedAt: string;
+  restoredCommitSha: string;
+  restoredBuildSha256: string;
+  restoredBlueprintSha256: string;
+  stateConsistencyPassed: boolean;
+  dataLossDetected: boolean;
+};
+
 const STAGES: CanaryStage[] = ["CANARY_1", "CANARY_10", "CANARY_50", "FULL"];
 const LIMITS: Record<CanaryStage, { maxNotionalUsd: number; minTransactions: number; minDurationMs: number; maxFailureBps: number }> = {
   CANARY_1: { maxNotionalUsd: 25_000, minTransactions: 20, minDurationMs: 30 * 60 * 1000, maxFailureBps: 100 },
@@ -64,6 +76,48 @@ export function evaluateCanaryObservation(observation: CanaryObservation) {
   const failureBps = Math.round(observation.failedTransactions / observation.transactions * 10_000);
   if (failureBps > limits.maxFailureBps) throw new Error("Canary failure rate exceeds stage policy");
   return { passed: true, stage: observation.stage, failureBps, durationMs: endedAt - startedAt };
+}
+
+export function evaluateCanaryHistory(history: CanaryObservation[]) {
+  if (history.length < 1 || history.length > STAGES.length) throw new Error("Invalid canary history length");
+  let previousEnd = -Infinity;
+  for (let index = 0; index < history.length; index += 1) {
+    const observation = history[index];
+    if (observation.stage !== STAGES[index]) throw new Error("Canary history must follow the staged rollout order");
+    evaluateCanaryObservation(observation);
+    const start = new Date(observation.startedAt).getTime();
+    const end = new Date(observation.endedAt).getTime();
+    if (start < previousEnd) throw new Error("Canary stages must not overlap");
+    previousEnd = end;
+  }
+  return {
+    passed: true,
+    completedStages: history.map((item) => item.stage),
+    currentStage: history[history.length - 1].stage
+  };
+}
+
+export function validateRollbackDrill(input: {
+  drill: RollbackDrill;
+  manifest: RollbackManifest;
+  maximumRecoveryMs?: number;
+}) {
+  const maximumRecoveryMs = input.maximumRecoveryMs ?? 15 * 60 * 1000;
+  if (input.drill.network !== input.manifest.network) throw new Error("Rollback drill network mismatch");
+  sha40(input.drill.restoredCommitSha, "Restored commit");
+  sha64(input.drill.restoredBuildSha256, "Restored build");
+  sha64(input.drill.restoredBlueprintSha256, "Restored blueprint");
+  if (input.drill.restoredCommitSha.toLowerCase() !== input.manifest.rollbackCommitSha.toLowerCase()) throw new Error("Rollback drill restored the wrong commit");
+  if (input.drill.restoredBuildSha256.toLowerCase() !== input.manifest.rollbackBuildSha256.toLowerCase()) throw new Error("Rollback drill restored the wrong build");
+  if (input.drill.restoredBlueprintSha256.toLowerCase() !== input.manifest.rollbackBlueprintSha256.toLowerCase()) throw new Error("Rollback drill restored the wrong blueprint");
+  if (!input.drill.stateConsistencyPassed) throw new Error("Rollback drill state consistency failed");
+  if (input.drill.dataLossDetected) throw new Error("Rollback drill detected data loss");
+  const detected = new Date(input.drill.detectedAt).getTime();
+  const started = new Date(input.drill.rollbackStartedAt).getTime();
+  const completed = new Date(input.drill.rollbackCompletedAt).getTime();
+  if (![detected, started, completed].every(Number.isFinite) || started < detected || completed < started) throw new Error("Invalid rollback drill timeline");
+  if (!Number.isInteger(maximumRecoveryMs) || maximumRecoveryMs <= 0 || completed - detected > maximumRecoveryMs) throw new Error("Rollback drill exceeded recovery policy");
+  return { passed: true, recoveryMs: completed - detected };
 }
 
 export function authorizeCanaryPromotion(input: {

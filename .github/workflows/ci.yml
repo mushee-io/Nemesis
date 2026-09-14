@@ -30,7 +30,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aiken-lang/aiken/releases/download/v1.1.22/aiken-installer.sh | sh
           echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
       - run: "$HOME/.aiken/bin/aiken --version"
-      - run: "$HOME/.aiken/bin/aiken check"
+      - run: "$HOME/.aiken/bin/aiken check --max-success=300"
       - run: "$HOME/.aiken/bin/aiken build"
       - run: node scripts/verify-blueprint.mjs plutus.json
       - run: node scripts/export-validator-manifest.mjs plutus.json artifacts/validator-manifest.json

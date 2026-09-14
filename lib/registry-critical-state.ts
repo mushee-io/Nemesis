@@ -8,6 +8,14 @@ export type RegistryCriticalState = {
   operatorRoot: string;
   settlementRoot: string;
   migrationRoot: string;
+  reviewRoot: string;
+  recoveryRoot: string;
+  economicsRoot: string;
+  oraclePolicyRoot: string;
+  disputeRoot: string;
+  accountabilityRoot: string;
+  invariantRoot: string;
+  upgradeRecoveryRoot: string;
   oracleRound: number;
   fundingRound: number;
   paused: boolean;
@@ -29,12 +37,35 @@ export function validateRegistryCriticalState(state: RegistryCriticalState) {
     riskRoot: digest64(state.riskRoot, "Registry risk root"),
     operatorRoot: digest64(state.operatorRoot, "Registry operator root"),
     settlementRoot: digest64(state.settlementRoot, "Registry settlement root"),
-    migrationRoot: digest64(state.migrationRoot, "Registry migration root")
+    migrationRoot: digest64(state.migrationRoot, "Registry migration root"),
+    reviewRoot: digest64(state.reviewRoot, "Registry review root"),
+    recoveryRoot: digest64(state.recoveryRoot, "Registry recovery root"),
+    economicsRoot: digest64(state.economicsRoot, "Registry economics root"),
+    oraclePolicyRoot: digest64(state.oraclePolicyRoot, "Registry oracle policy root"),
+    disputeRoot: digest64(state.disputeRoot, "Registry dispute root"),
+    accountabilityRoot: digest64(state.accountabilityRoot, "Registry accountability root"),
+    invariantRoot: digest64(state.invariantRoot, "Registry invariant root"),
+    upgradeRecoveryRoot: digest64(state.upgradeRecoveryRoot, "Registry upgrade recovery root")
   };
   const digest = createHash("sha256").update([
-    normalized.deploymentEpoch, normalized.registryNonce, normalized.stateRoot, normalized.riskRoot,
-    normalized.operatorRoot, normalized.settlementRoot, normalized.migrationRoot,
-    normalized.oracleRound, normalized.fundingRound, normalized.paused ? 1 : 0
+    normalized.deploymentEpoch,
+    normalized.registryNonce,
+    normalized.stateRoot,
+    normalized.riskRoot,
+    normalized.operatorRoot,
+    normalized.settlementRoot,
+    normalized.migrationRoot,
+    normalized.reviewRoot,
+    normalized.recoveryRoot,
+    normalized.economicsRoot,
+    normalized.oraclePolicyRoot,
+    normalized.disputeRoot,
+    normalized.accountabilityRoot,
+    normalized.invariantRoot,
+    normalized.upgradeRecoveryRoot,
+    normalized.oracleRound,
+    normalized.fundingRound,
+    normalized.paused ? 1 : 0
   ].join("|")).digest("hex");
   return { ...normalized, digest };
 }
